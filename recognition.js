@@ -378,7 +378,7 @@
         this.state = new NullState(this);
 
         this.history = new CHistory(this);
-        this.curPoint = -1;
+        this.worker = null;
     }
     CRecognition.prototype.updateView = function() {
         this.updateInterfaceState();
@@ -679,64 +679,84 @@
            tessedit_parallelize: '0',
            user_defined_dpi: dpi+ "",
            hocr_font_info: '1'
-       }
+       };
     };
-    CRecognition.prototype.startRecognize = async function () {
+
+    CRecognition.prototype.stopRecognize = async function() {
+        if(this.worker) {
+            await this.worker.terminate();
+            this.drawing.stopRecognitionMask();
+            this.worker = null;
+        }
+    };
+
+    CRecognition.prototype.hasUnrecognized = function() {
         var oPage = this.getCurPage();
-        if(!oPage) {
+        if(oPage && oPage.data) {
+            for(var i = 0; i < oPage.data.blocks.length; ++i) {
+                if(!this.isRecognizedBlock(oPage.data.blocks[i])) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    };
+
+    CRecognition.prototype.startRecognize = async function (bFull) {
+        var oPage = this.getCurPage();
+        if(!oPage || !oPage.isLoaded() || this.worker) {
             return;
         }
         var _t = this;
         var fProgress;
-        if(!oPage.data) {
-            if(this.checkOldTesseract()) {
+        if(!oPage.data || bFull) {
+            await (async () => {
+                const worker = await Tesseract.createWorker({
+                    logger: m => fProgress(m)
+                });
+                _t.worker = worker;
                 fProgress = this.drawing.startRecognitionMask();
-                var oParams = _t.createTesseractParams("2", oPage.getDPI());
-
-                oParams.lang = this.getLangParam();
-                Tesseract.recognize(oPage.img.canvas, oParams)
-                    .progress(function  (p) {
-                        fProgress(p);
-                    })
-                    .then(function (data) {
-                        oPage.data = data;
-                        oPage.data.lang = _t.getLangParam();
-                        oPage.postProcessData();
-                        _t.drawing.stopRecognitionMask();
-                        oPage.onPageUpdate();
-                    }).finally(function(){
-                    _t.drawing.stopRecognitionMask();
+                await worker.load();
+                if(!_t.worker)
+                    return ;
+                await worker.loadLanguage(this.getLangParam());
+                if(!_t.worker)
+                    return ;
+                await worker.initialize(this.getLangParam());
+                if(!_t.worker)
+                    return ;
+                await worker.setParameters(this.createTesseractParams(Tesseract.PSM.AUTO, oPage.getDPI()));
+                if(!_t.worker)
+                    return ;
+                const {data} = await worker.recognize(oPage.img.canvas);
+                if(!_t.worker)
+                    return ;
+                await worker.terminate();
+                if(!_t.worker)
+                    return ;
+                _t.worker = null;
+                var oldData = oPage.data;
+                data.lang = _t.getLangParam();
+                oPage.data = data;
+                oPage.postProcessData();
+                _t.selectedObjects.length = 0;
+                this.useHistory(function () {
+                    oPage.data = data;
+                    oPage.onPageUpdate();
+                }, function () {
+                    oPage.data = oldData;
                     oPage.onPageUpdate();
                 });
-            }
-            else {
-                fProgress = this.drawing.startRecognitionMask();
-                await (async () => {
-                    const worker = await Tesseract.createWorker({
-                        logger: m => fProgress(m)
-                    });
-                    await worker.load();
-                    await worker.loadLanguage(this.getLangParam());
-                    await worker.initialize(this.getLangParam());
-                    await worker.setParameters(this.createTesseractParams(Tesseract.PSM.AUTO, oPage.getDPI()));
-                    const {data} = await worker.recognize(oPage.img.canvas);
-                    await worker.terminate();
-                    oPage.data = data;
-                    oPage.data.lang = this.getLangParam();
-                    oPage.postProcessData();
-                    _t.drawing.stopRecognitionMask();
-                    oPage.onPageUpdate();
-                })();
-            }
+                _t.drawing.stopRecognitionMask();
+            })();
         }
         else {
             var aBlocks = oPage.data.blocks;
             var rectangles = [], oBlock;
             var aIndexes = [];
-            for(var i = 0; i < aBlocks.length; ++i) {
+            for (var i = 0; i < aBlocks.length; ++i) {
                 oBlock = aBlocks[i];
-                if(MAP_TESSERACT_AREAS[oBlock.blocktype] === AREA_TYPE_TEXT) {
-                    if(!this.isRecognizedBlock(oBlock)) {
+                    if (!this.isRecognizedBlock(oBlock)) {
                         var bb = oBlock.bbox;
                         var nDelta = 5;
                         var x0 = Math.max(0, bb.x0 - nDelta);
@@ -747,63 +767,61 @@
                         rectangles.push(oBox);
                         aIndexes.push(i);
                     }
-                }
             }
-            if(rectangles.length > 0) {
+
+            if (rectangles.length > 0) {
                 var results;
                 var newLang = this.getLangParam();
                 var oldLang = oPage.data.lang;
-                if(this.checkOldTesseract()) {
-
+                fProgress = this.drawing.startRecognitionMask();
+                var nWorkersCount = 1;
+                if (navigator && typeof navigator.hardwareConcurrency === "number") {
+                    nWorkersCount = navigator.hardwareConcurrency;
                 }
-                else {
-                    fProgress = this.drawing.startRecognitionMask();
-                    var nWorkersCount = 1;
-                    if(navigator && typeof navigator.hardwareConcurrency === "number") {
-                        nWorkersCount = navigator.hardwareConcurrency;
-                    }
-                    nWorkersCount = Math.min(rectangles.length, nWorkersCount);
-                    const oScheduler = Tesseract.createScheduler();
-                    var aProgress = new Array(nWorkersCount);
-                    for(let nWorkerIndex = 0; nWorkerIndex < nWorkersCount; ++nWorkerIndex) {
-                        aProgress[nWorkerIndex] = 0;
+                nWorkersCount = Math.min(rectangles.length, nWorkersCount);
+                const oScheduler = Tesseract.createScheduler();
+                _t.worker = oScheduler;
+                fProgress = this.drawing.startRecognitionMask();
+                var aProgress = new Array(nWorkersCount);
+                for (let nWorkerIndex = 0; nWorkerIndex < nWorkersCount; ++nWorkerIndex) {
+                    aProgress[nWorkerIndex] = 0;
 
-                        let worker = await (async (nWorkerIndex)=>{
-                            var fOnWorkerProgress = function (oProgress) {
-                                if(oProgress.status === "recognizing text") {
-                                    aProgress[nWorkerIndex] = oProgress.progress;
-                                    var nSumm = 0;
-                                    for (var i = 0; i < aProgress.length; ++i) {
-                                        nSumm += aProgress[i];
-                                    }
-                                    fProgress({status: "recognizing text", progress: nSumm / aProgress.length});
+                    let worker = await (async (nWorkerIndex) => {
+                        var fOnWorkerProgress = function (oProgress) {
+                            if (oProgress.status === "recognizing text") {
+                                aProgress[nWorkerIndex] = oProgress.progress;
+                                var nSumm = 0;
+                                for (var i = 0; i < aProgress.length; ++i) {
+                                    nSumm += aProgress[i];
                                 }
+                                fProgress({status: "recognizing text", progress: nSumm / aProgress.length});
                             }
-                            return  await (async () => {
-                                const worker = await Tesseract.createWorker({
-                                    logger: m => fOnWorkerProgress(m)
-                                });
-                                await worker.load();
-                                await worker.loadLanguage(this.getLangParam());
-                                await worker.initialize(this.getLangParam());
-                                await worker.setParameters(this.createTesseractParams(Tesseract.PSM.SINGLE_BLOCK, oPage.getDPI()));
-                                return worker;
-                            })();
-                        })(nWorkerIndex);
-                        oScheduler.addWorker(worker);
-                    }
-                    results = await Promise.all(rectangles.map((rectangle) => (
-                        oScheduler.addJob('recognize', oPage.img.canvas, { rectangle: rectangle })
-                    )));
-                    await oScheduler.terminate();
+                        }
+                        return await (async () => {
+                            const worker = await Tesseract.createWorker({
+                                logger: m => fOnWorkerProgress(m)
+                            });
+                            await worker.load();
+                            await worker.loadLanguage(this.getLangParam());
+                            await worker.initialize(this.getLangParam());
+                            await worker.setParameters(this.createTesseractParams(Tesseract.PSM.SINGLE_BLOCK, oPage.getDPI()));
+                            return worker;
+                        })();
+                    })(nWorkerIndex);
+                    oScheduler.addWorker(worker);
                 }
+                results = await Promise.all(rectangles.map((rectangle) => (
+                    oScheduler.addJob('recognize', oPage.img.canvas, {rectangle: rectangle})
+                )));
+                await oScheduler.terminate();
+                _t.worker = null;
                 var aOldBlocks = [];
                 this.useHistory(function () {
 
                     oPage.data.lang = newLang;
-                    for(var i = 0; i < aIndexes.length; ++i) {
+                    for (var i = 0; i < aIndexes.length; ++i) {
                         aOldBlocks[i] = oPage.data.blocks[aIndexes[i]];
-                        if(results[i].data.blocks[0] && results[i].data.blocks[0].paragraphs[0]) {
+                        if (results[i].data.blocks[0] && results[i].data.blocks[0].paragraphs[0]) {
                             results[i].data.blocks[0].bbox = aOldBlocks[i].bbox;
                             oPage.data.blocks[aIndexes[i]] = results[i].data.blocks[0];
                         }
@@ -811,7 +829,7 @@
                     oPage.onPageUpdate();
                 }, function () {
                     oPage.data.lang = oldLang;
-                    for(var i = 0; i < aIndexes.length; ++i) {
+                    for (var i = 0; i < aIndexes.length; ++i) {
                         oPage.data.blocks[aIndexes[i]] = aOldBlocks[i];
                     }
                 });
@@ -821,9 +839,17 @@
     };
     CRecognition.prototype.updateInterfaceState = function() {
        var oCurPage = this.getCurPage();
+        var tr = window.Asc.plugin.tr;
        if(!oCurPage || this.drawing.bRecognition) {
             $("#load-file-button-id").attr("disabled", this.drawing.bRecognition);
-            $('#recognize-button').attr("disabled", true);
+            if(this.worker) {
+                $("#recognize-button").text(tr("Stop recognizing"));
+                $('#recognize-button').attr("disabled", false);
+            }
+            else{
+                $("#recognize-button").text(tr("Analyze and recognize"));
+                $('#recognize-button').attr("disabled", true);
+            }
             $('#delete-area-button').attr("disabled", true);
             $('#text-area-button').attr("disabled", true);
             $('#picture-area-button').attr("disabled", true);
@@ -834,13 +860,14 @@
        }
        else {
            $("#load-file-button-id").attr("disabled", false);
-           $('#recognize-button').attr("disabled", true);
+           $('#recognize-button').attr("disabled", false);
+           $("#recognize-button").text(tr("Analyze and recognize"));
            $('#delete-area-button').attr("disabled", this.selectedObjects.length === 0);
            $('#text-area-button').attr("disabled", oCurPage.data === null );
            $('#picture-area-button').attr("disabled", oCurPage.data === null );
            $('#undo-button').attr("disabled", !this.history.canUndo());
            $('#redo-button').attr("disabled", !this.history.canRedo());
-           $('#recognize-blocks-button').attr("disabled", false);
+           $('#recognize-blocks-button').attr("disabled", !this.hasUnrecognized());
            $('#lang-select').attr("disabled", false);
        }
         $("#delete-area-button").attr("title", function () {
@@ -1649,6 +1676,7 @@
             this.recognition.tracks[0].track(x, y);
             this.recognition.drawing.overlay.update();
         }
+        this.recognition.drawing.updateCursor("crosshair");
     };
     AddBoxState.prototype.onMouseUp = function(e, x, y) {
         if(!this.tracked) {
@@ -1999,7 +2027,9 @@
     };
 
     CPage.prototype.postProcessData = function() {
-
+        if(!this.data) {
+            return;
+        }
         for(var nBlock = this.data.blocks.length - 1; nBlock > -1; --nBlock) {
             var oBlock = this.data.blocks[nBlock];
             if(oBlock.blocktype === "TABLE") {
@@ -2140,6 +2170,10 @@
         return (nPix / this.img.getDPI()   * 914400) >> 0;
     };
 
+    CPage.prototype.isLoaded = function() {
+        return this.img.status === IMAGE_STATUS_COMPLETE;
+    };
+
     function CImage(oFile, oPage) {
         this.page = oPage;
         this.status = IMAGE_STATUS_LOADING;
@@ -2154,7 +2188,6 @@
                 oThis.canvas = oTiff.toCanvas();
                 if(oThis.canvas) {
                     oThis.status = IMAGE_STATUS_COMPLETE;
-                    oThis.page.parent.startRecognize();
                 }
                 else {
                     oThis.status = IMAGE_STATUS_ERROR;
@@ -2231,7 +2264,6 @@
                     oContext.drawImage(oImg, 0, 0, oImg.width, oImg.height);
                     oThis.status = IMAGE_STATUS_COMPLETE;
                     oThis.page.onPageUpdate();
-                    oThis.page.parent.startRecognize();
                     oImg = undefined;
                 };
                 oImg.onerror = function(){

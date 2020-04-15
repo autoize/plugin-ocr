@@ -210,7 +210,12 @@
         });
         $('#recognize-button').click(
             function () {
-                oRecognition.startRecognize();
+                if (!oRecognition.worker) {
+                    oRecognition.startRecognize(true);
+                }
+                else{
+                    oRecognition.stopRecognize();
+                }
             }
         );
 
