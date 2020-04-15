@@ -4,11 +4,17 @@
     <meta charset='UTF-8'>
     <title>OCR</title>
     <script type="text/javascript" src="https://onlyoffice.github.io/sdkjs-plugins/v1/plugins.js"></script>
-	<script type="text/javascript" src="https://onlyoffice.github.io/sdkjs-plugins/v1/plugins-ui.js"></script>
-	<link rel="stylesheet" href="https://onlyoffice.github.io/sdkjs-plugins/v1/plugins.css">
-    <script type='text/javascript' src='ocr.js'></script>
-    <script src='https://ajax.googleapis.com/ajax/libs/jquery/2.2.2/jquery.min.js'></script>
-    <script src='https://cdn.rawgit.com/naptha/tesseract.js/1.0.7/dist/tesseract.js'></script>
+    <script type="text/javascript" src="https://onlyoffice.github.io/sdkjs-plugins/v1/plugins-ui.js"></script>
+    <link rel="stylesheet" href="https://onlyoffice.github.io/sdkjs-plugins/v1/plugins.css">
+    <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.2/jquery.min.js"></script>
+    <script type="text/javascript" src="https://unpkg.com/panzoom@8.7.3/dist/panzoom.min.js"></script>
+    <script type="text/javascript" src="https://unpkg.com/tesseract.js@v2.1.1/dist/tesseract.min.js"></script>
+    <!--<script type="text/javascript" src="https://unpkg.com/tesseract.js@v1.0.14/dist/tesseract.min.js"></script>-->
+    <script type="text/javascript" src="ocr.js"></script>
+    <script type="text/javascript" src="drawing.js"></script>
+    <script type="text/javascript" src="recognition.js"></script>
+    <script type="text/javascript" src="tiff.min.js"></script>
+    <script type="text/javascript" src="jquery.fittext.js"></script>
 </head>
 
 <style>
@@ -28,6 +34,14 @@
     }
     .disabled {
         color: darkgrey;
+    }
+    .float-block {
+        position: absolute;
+        width: 220px;
+        height:30px;
+        background: white;
+        border-color: #8d8d8d;
+        border-width: 1px;
     }
 
     #lang-select {
@@ -49,8 +63,7 @@
 </style>
 <body style="box-sizing:border-box; width: 100%; height: 100%; margin: 0; padding-left: 22px; background: #F7F7F7;">
     <div style="height: 100%; width: 100%">
-        <div style="height: 99px">
-            <label class="noselect" style="display: inline-block; margin-top: 15px; margin-bottom: 22px" id="label1">Tesseract.js lets recognize text in pictures (png, jpg)</label><br>
+        <div style="width: 100%; height: 99px">
             <div class="noselect">
                 <div style="margin-right: 0px; width: 175px; overflow: visible;">
                     <button class="btn-text-default" id="load-file-button-id">Load File</button><br>
@@ -128,12 +141,32 @@
                 <button class="btn-text-default" id='recognize-button' disabled>Recognize</button><br>
                 <label id="status-label" class="noselect disabled" ></label>
             </div>
+            <div>
+                <button  class="btn-text-default" id='delete-area-button' style="width: 30px; height: 30px; padding: 0px">
+                    <img src="remove.png" style="width: 20px; height: 20px; margin: 4px">
+                </button>
+                <button  class="btn-text-default" id='text-area-button' style="width: 30px; height: 30px; padding: 0px" >
+                    <img src="text.png" style="width: 20px; height: 20px; margin: 4px">
+                </button>
+                <button  class="btn-text-default" id='picture-area-button' style="width: 30px; height: 30px; padding: 0px">
+                    <img src="image.png" style="width: 20px; height: 20px; margin: 4px">
+                </button>
+                <button  class="btn-text-default" id='undo-button' style="width: 30px; height: 30px; padding: 0px">
+                    <img src="undo.png" style="width: 20px; height: 20px; margin: 4px">
+                </button>
+                <button  class="btn-text-default" id='redo-button' style="width: 30px; height: 30px; padding: 0px">
+                    <img src="redo.png" style="width: 20px; height: 20px; margin: 4px">
+                </button>
+                <button  class="btn-text-default" id='recognize-blocks-button' style="width: 30px; height: 30px; padding: 0px">
+                   <p>R</p>
+                </button>
+            </div>
         </div>
-        <div id="scrollable-image-text-div" style="position:absolute; display: none; height: calc(100% - 99px); width: calc(100% - 5px); position: relative; overflow: hidden">
-            <div style="width: calc(50% - 20px); margin-right: 25px" id="image-container-div" class="noselect">
+        <div id="scrollable-image-text-div" style="border: 1px; position: relative; display: inline-block;  position: relative; overflow: hidden; width: 100%; height: calc(100% - 99px);">
+            <div style="display: inline-block; width: calc(50% - 20px); height: 100%; border: 1px; position: relative;" id="image-container-div" class="noselect">
 
             </div>
-            <div id="text-container-div" style="width: calc(50% - 24px)">
+            <div id="text-container-div" style="display: inline-block; width: calc(50% - 24px); height: 100%; border: 1px; overflow: hidden">
 
             </div>
         </div>

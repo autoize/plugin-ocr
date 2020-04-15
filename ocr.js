@@ -1,6 +1,6 @@
 (function(window, undefined){
 
-	var oLangMap = {};    
+	var oLangMap = {};
     oLangMap['eng'] = "English";
     oLangMap['chi_sim'] = "Chinese";
     oLangMap['rus'] = "Russian";
@@ -71,48 +71,95 @@
 			e.stopPropagation();
 		return false;
     };
-    
+
     function escapeHtml(string) {
         var res = string;
-        res = res.replace(/[\', \", \\,]/g, function (sSymbol) {
+        res = res.replace(/[\', \", \\]/g, function (sSymbol) {
             return '\\' + sSymbol;
         });
         return res;
     }
 
     var arrParsedData = [];
-
+    var oRecognition;
     window.Asc.plugin.init = function(){
 
         this.resizeWindow(592, 100, 592, 100, 592, 100);
+
+
+        var oImagesContainer = document.getElementById('image-container-div');
+        var container = document.getElementById('scrollable-image-text-div');
+
+
+        window.addEventListener("wheel", function(e){
+            var bCtrl = e.ctrlKey || e.metaKey;
+            if(bCtrl) {
+                e.preventDefault && e.preventDefault();
+                e.stopPropagation && e.stopPropagation();
+                return;
+            }}, { passive: false });
+
+
+
+
+
+        oRecognition = new OCR.CRecognition();
+        var oDrawing = new OCR.CDrawing(oImagesContainer, oRecognition);
+
+
+
         var nStartFilesCount = 0, arrImages;
 
         $( window ).resize(function(){
-            updateScroll();
         });
 
+
         function updateScroll(){
-            Ps.update();
         }
-        var container = document.getElementById('scrollable-image-text-div');        
-		Ps = new PerfectScrollbar("#" + container.id, {});
+
+        $('#delete-area-button').click(function (e) {
+            oRecognition.deleteSelectedBlocks();
+        });
+
+
+        $('#undo-button').click(function (e) {
+            oRecognition.undo();
+        });
+
+        $('#redo-button').click(function (e) {
+            oRecognition.redo();
+        });
+
+        $('#text-area-button').click(function (e) {
+            oRecognition.startAdd("FLOWING_TEXT");
+        });
+
+        $('#picture-area-button').click(function (e) {
+            oRecognition.startAdd("FLOWING_IMAGE");
+        });
+
+        $('#recognize-blocks-button').click(function (e) {
+            oRecognition.startRecognize();
+        });
+
+
         $('#load-file-button-id').click(
-          					
+
 			function (e) {
-				
+
 				if (window["AscDesktopEditor"])
 				{
 					window["AscDesktopEditor"]["OpenFilenameDialog"]("images", true, function(files) {
                         arrImages = [];
-                        
+
                         if (!Array.isArray(files)) // string detect
                             files = [files];
 
 						if (files.length == 0)
 							return;
-						
+
 						window.Asc.plugin.resizeWindow(800, 571, 800, 571);
-						
+
 						var oImagesContainer = document.getElementById('image-container-div');
 						while (oImagesContainer.firstChild) {
 							oImagesContainer.removeChild(oImagesContainer.firstChild);
@@ -121,8 +168,8 @@
 						while (oTextContainer.firstChild) {
 							oTextContainer.removeChild(oTextContainer.firstChild);
 						}
-						
-						for (var i = 0; i < files.length; i++) 
+
+						for (var i = 0; i < files.length; i++)
 						{
 							var oImgElement = document.createElement('img');
 							oImgElement.src = window["AscDesktopEditor"]["GetImageBase64"](files[i], false);
@@ -131,7 +178,7 @@
 							arrImages.push(oImgElement);
 							oImagesContainer.appendChild(oImgElement);
 						}
-						
+
 						document.getElementById('lang-select').removeAttribute('disabled');
 						document.getElementById('recognize-button').removeAttribute('disabled');
 						nStartFilesCount = files.length;
@@ -139,13 +186,13 @@
 						$('#scrollable-image-text-div').css('display', 'inline-block');
 						updateScroll();
 					});
-					
-					return;							
+
+					return;
 				}
-			
+
                 $('#images-input').click();
             }
-        );				
+        );
 
         $('#images-input').change(function(e) {
             var arrFiles = e.target.files;
@@ -159,45 +206,25 @@
 					alert(arrFiles[i].name + "\nOCR plugin cannot read this file.");
 				}
 			}
+			// var file = arrFiles[0];
+            // if (file && file.name) {
+            //     EXIF.getData(file, function() {
+            //         var exifData = EXIF.pretty(this);
+            //         if (exifData) {
+            //             alert(exifData);
+            //         } else {
+            //             alert("No EXIF data found in image '" + file.name + "'.");
+            //         }
+            //     });
+            // }
 			arrFiles = arrFiles2;
             if(arrFiles.length > 0){
                 window.Asc.plugin.resizeWindow(800, 571, 800, 571);
 
-                var oImagesContainer = document.getElementById('image-container-div');
-                while (oImagesContainer.firstChild) {
-                    oImagesContainer.removeChild(oImagesContainer.firstChild);
+                for(i = 0; i < arrFiles.length; ++i) {
+                    oRecognition.addPageFromFile(arrFiles[i]);
                 }
-                var oTextContainer = document.getElementById('text-container-div');
-                while (oTextContainer.firstChild) {
-                    oTextContainer.removeChild(oTextContainer.firstChild);
-                }
-                arrParsedData.length = 0;
-                var oFileReader = new FileReader();
-                var nIndex = 0;
-                arrImages = [];                
-                $('#status-label').text('Loading images');
-                oFileReader.onloadend = function() {
-                    var oImgElement = document.createElement('img');
-                    oImgElement.src = oFileReader.result;
-                    oImgElement.style.width = '100%';
-                    arrImages.push(oImgElement);
-                    oImagesContainer.appendChild(oImgElement);
-                    ++nIndex;
-                    if(nIndex < arrFiles.length){
-                        oFileReader.readAsDataURL(arrFiles[nIndex]);
-                        $(oImgElement).css("margin-bottom", "10px");
-                    }
-                    else{
-                        document.getElementById('lang-select').removeAttribute('disabled');
-                        document.getElementById('recognize-button').removeAttribute('disabled');
-                        nStartFilesCount = arrImages.length;
-                        $('#status-label').text('');
-                        $('#scrollable-image-text-div').css('display', 'inline-block');
-
-                    }
-                    updateScroll();
-                };
-                oFileReader.readAsDataURL(arrFiles[nIndex]);
+                oDrawing.goToPage(0);
             }
         });
         $('#recognize-button').click(
@@ -224,25 +251,37 @@
                 document.getElementById('lang-select').setAttribute('disabled', '');
                 document.getElementById('load-file-button-id').setAttribute('disabled', '');
                 var fTesseractCall = function(){
+
+
+                    const { createWorker } = Tesseract;
+                    (async () => {
+                        const worker = createWorker();
+                        await worker.load();
+                        await worker.loadLanguage('eng');
+                        await worker.initialize('eng');
+                        const { data} = await worker.recognize(image);
+                        console.log(data);
+                    })();
+
+
                     Tesseract.recognize(arrImagesCopy.splice(0, 1)[0], {lang: $('#lang-select option:selected')[0].value}).progress(function (progress) {
                         if(progress && progress.status === "recognizing text"){
                             var nPercent =  (100*(progress.progress + nStartFilesCount - arrImagesCopy.length - 1)/nStartFilesCount) >> 0;
                             $('#status-label').text('Recognizing: '+ nPercent + '%');
                         }
-                    }).catch(function(err){						
+                    }).catch(function(err){
                                 $('#status-label').text('');
                                 document.getElementById('recognize-button').removeAttribute('disabled');
                                 document.getElementById('lang-select').removeAttribute('disabled');
 								document.getElementById('load-file-button-id').removeAttribute('disabled', '');
-						
-					}).then(function(result){						
+
+					}).then(function(result){
 						 document.getElementById('text-container-div').appendChild($(result.html)[0]);
                             arrParsedData.push(result);
-                            updateScroll();
                             if(arrImagesCopy.length > 0){
                                 fTesseractCall();
                             }
-							else{								
+							else{
                                 $('#status-label').text('');
                                 document.getElementById('recognize-button').removeAttribute('disabled');
                                 document.getElementById('lang-select').removeAttribute('disabled');
@@ -254,59 +293,255 @@
                 fTesseractCall();
             }
         );
+        oRecognition.updateInterfaceState();
     };
 
     window.Asc.plugin.button = function(id){
         if (id == 0){
+            window.Asc.plugin.info.recalculate = true;
+            this.executeCommand("close", oRecognition.getScript().s);
+            return;
+            var oPage =  oRecognition.pages[0];
+            var aSections = oPage.dataProcess();
             var sScript = '';
-            sScript += 'var oDocument = Api.GetDocument();';
-            sScript += '\nvar oParagraph, oRun, arrInsertResult = [], oTextPr;';
+            sScript += 'var oDocument = Api.GetDocument();\n';
+            for(var nSectionIndex = aSections.length - 1; nSectionIndex > -1; --nSectionIndex) {
+                var oCurSection = aSections[nSectionIndex];
 
-            for(var i = 0; i < arrParsedData.length; ++i){
-                var oCurData = arrParsedData[i];
-                for(var j = 0;  j < oCurData.paragraphs.length; ++j){
-                    var oCurParagraph = oCurData.paragraphs[j];
-                    sScript += '\noParagraph = Api.CreateParagraph();';
-                    sScript += '\narrInsertResult.push(oParagraph);';
 
-                    for(var t = 0; t < oCurParagraph.lines.length; ++t){
-                        var oCurLine = oCurParagraph.lines[t];
-                        if(t > 0 &&  t < oCurParagraph.lines.length - 1){
-                            //sScript += '\noParagraph.AddLineBreak();';
-                        }
-                        for(var k = 0; k < oCurLine.words.length; ++k){
-                            var oWord = oCurLine.words[k];
-                            var sText = oWord.text + (k < oCurLine.words.length - 1 ? ' ' : '');
-                            sText = escapeHtml(sText);
-                            sScript += '\noRun = oParagraph.AddText(\'' + sText + '\');';
-                            sScript += '\noTextPr = oRun.GetTextPr();';
-                            var arrFontName = oWord.font_name.split('_');
-                            var sFontName = '';
-                            for(var s = 0; s < arrFontName.length; ++s ){
-                                if(arrFontName[s] === 'Bold'){
-                                    sScript += '\noTextPr.SetBold(true);';
-                                }
-                                else if(arrFontName[s] === 'Italic'){
-                                    sScript += '\noTextPr.SetItalic(true);';
-                                }
-                                else if(arrFontName[s] === 'Strikeout'){
-                                    sScript += '\noTextPr.SetStrikeout(true);';
-                                }
-                                else{
+                if(oCurSection.columns.length === 0) {
+                    sScript += '\nvar oParagraph, oRun, oTextPr, oFirstSectionParagraph;\n';
 
-                                    if(sFontName != ''){
-                                        sFontName += ' ';
+
+                    sScript += '\noFirstSectionParagraph = Api.CreateParagraph();\n';
+                    sScript += "oDocument.Push(oFirstSectionParagraph);";
+
+                    sScript += "var oSection1 = oDocument.CreateSection(oFirstSectionParagraph);";
+                    sScript += "oSection1.SetPageSize("+oPage.convertPixToTwips(oPage.getWidth()) +", "+oPage.convertPixToTwips(oPage.getHeight()) +");";
+                    sScript += "oSection1.SetPageMargins("+oPage.convertPixToTwips(oPage.marginL) +", "+oPage.convertPixToTwips(oPage.marginT) +", "+oPage.convertPixToTwips(oPage.marginR) +", "+oPage.convertPixToTwips(oPage.marginB) +");";
+                    if(nSectionIndex === aSections.length - 1) {
+                        sScript += "oSection1.SetType(\"nextPage\");";
+                    }
+                    else {
+                        sScript += "oSection1.SetType(\"continuous\");";
+                    }
+
+                    for(var z = 0; z < oCurSection.blocks.length; ++z) {
+                        var oBlock = oCurSection.blocks[z];
+                        if(MAP_TESSERACT_AREAS[oBlock.blocktype] === AREA_TYPE_TEXT) {
+                            sScript += "var oFill = Api.CreateNoFill();";
+                            sScript += "var oStroke = Api.CreateStroke(0, Api.CreateNoFill());";
+                            var nWidth = oPage.convertPixToEMU(oBlock.bbox.x1 - oBlock.bbox.x0);
+                            var nHeight = oPage.convertPixToEMU(oBlock.bbox.y1 - oBlock.bbox.y0);
+                            sScript += "var oShape = Api.CreateShape(\"rect\", "+nWidth +", "+nHeight +", oFill, oStroke);";
+                            sScript += "oShape.SetWrappingStyle(\"square\");";
+                            sScript += "oShape.SetPaddings(0, 0, 0, 0);";
+                            sScript += "oShape.SetDistances(0, 0, 0, 0);";
+                            sScript += "oShape.SetHorPosition(\"page\", "+oPage.convertPixToEMU(oBlock.bbox.x0)+");";
+                            sScript += "oShape.SetVerPosition(\"page\", "+oPage.convertPixToEMU(oBlock.bbox.y0)+");";
+                            sScript += "oShape.SetVerticalTextAlign(\"top\");";
+
+
+
+
+                            sScript += "oFirstSectionParagraph.AddDrawing(oShape);";
+
+                            sScript += "var oDocContent = oShape.GetDocContent();";
+                            sScript += "oDocContent.RemoveAllElements();";
+
+                            for(var j = 0;  j < oBlock.paragraphs.length; ++j){
+                                var oCurParagraph = oBlock.paragraphs[j];
+                                if(j === 0) {
+                                    sScript += '\noParagraph = oDocContent.GetElement(0);\n';
+                                }
+                                else {
+                                    sScript += '\noParagraph = Api.CreateParagraph();\n';
+                                    sScript += "oDocContent.Push(oParagraph);";
+                                }
+
+                                sScript += '\noParagraph.SetJc("left");\n';
+                                var oFirstLine = oCurParagraph.lines[0];
+                                if(oFirstLine) {
+                                    sScript += "oParagraph.SetIndFirstLine(" + oPage.convertPixToTwips(oFirstLine.bbox.x0 - oBlock.bbox.x0) + ");";
+                                }
+                                for(var t = 0; t < oCurParagraph.lines.length; ++t){
+                                    var oCurLine = oCurParagraph.lines[t];
+                                    for(var k = 0; k < oCurLine.words.length; ++k){
+                                        var oWord = oCurLine.words[k];
+                                        var sText = oWord.text + (k < oCurLine.words.length - 1 ? ' ' : '');
+                                        sText = escapeHtml(sText);
+                                        sScript += '\noRun = oParagraph.AddText(\'' + sText + '\');\n';
+                                        sScript += '\noTextPr = oRun.GetTextPr();\n';
+                                        sScript += '\noTextPr.SetColor(0, 0, 0, false);\n';
+                                        // var arrFontName = oWord.font_name.split('_');
+                                        var sFontName = oWord.font_name;
+                                        if(sFontName.length > 0) {
+                                            sScript += '\noTextPr.SetFontFamily(\'' + sFontName + '\');\n';
+                                        }
+                                        if(oWord.is_bold){
+                                            sScript += '\noTextPr.SetBold(true);\n';
+                                        }
+                                        else {
+                                            sScript += '\noTextPr.SetBold(false);\n';
+                                        }
+                                        if(oWord.is_italic){
+                                            sScript += '\noTextPr.SetItalic(true);\n';
+                                        }
+                                        else {
+                                            sScript += '\noTextPr.SetItalic(false);\n';
+                                        }
+
+                                        if(oWord.is_underlined){
+                                            sScript += '\noTextPr.SetUnderline(true);\n';
+                                        }
+                                        else {
+                                            sScript += '\noTextPr.SetUnderline(false);\n';
+                                        }
+                                        if(oWord.is_smallcaps){
+                                            sScript += '\noTextPr.SetSmallCaps(true);\n';
+                                        }
+                                        else {
+                                            sScript += '\noTextPr.SetSmallCaps(false);\n';
+                                        }
+                                        sScript += '\noTextPr.SetFontSize(' + ((oWord.font_size * 2)) + ');\n';
                                     }
-                                    sFontName += arrFontName[s];
                                 }
                             }
-                            sScript += '\noTextPr.SetFontFamily(\'' + sFontName + '\');';
-                            sScript += '\noTextPr.SetFontSize(' + ((oWord.font_size * 5 )>> 0) + ');';
+
                         }
                     }
                 }
+                else {
+                    for(var nColumnIndex = 0; nColumnIndex < oCurSection.columns.length; ++ nColumnIndex) {
+                        var oColumn = oCurSection.columns[nColumnIndex];
+                        sScript += '\nvar oParagraph, oRun, oFirstSectionPar, oTextPr;\n';
+                        var oLastParagraph = null;
+                        for(var z = 0; z < oColumn.blocks.length; ++z) {
+                            var oBlock = oColumn.blocks[z];
+                            if(MAP_TESSERACT_AREAS[oBlock.blocktype] === AREA_TYPE_TEXT) {
+
+                                for(var j = 0;  j < oBlock.paragraphs.length; ++j){
+                                    var oCurParagraph = oBlock.paragraphs[j];
+                                    if(j === oBlock.paragraphs.length - 1
+                                        && z === oColumn.blocks.length - 1
+                                        && nColumnIndex === oCurSection.columns.length - 1) {
+
+                                        sScript += '\noParagraph = Api.CreateParagraph();\n';
+                                        sScript += "oDocument.Push(oParagraph);";
+
+                                        sScript += "var oSection1 = oDocument.CreateSection(oParagraph);";
+                                        sScript += "oSection1.SetPageSize("+oPage.convertPixToTwips(oPage.getWidth()) +", "+oPage.convertPixToTwips(oPage.getHeight()) +");";
+                                        sScript += "oSection1.SetPageMargins("+oPage.convertPixToTwips(oPage.marginL) +", "+oPage.convertPixToTwips(oPage.marginT) +", "+oPage.convertPixToTwips(oPage.marginR) +", "+oPage.convertPixToTwips(oPage.marginB) +");";
+                                        if(nSectionIndex === aSections.length - 1) {
+                                            sScript += "oSection1.SetType(\"nextPage\");";
+                                        }
+                                        else {
+                                            sScript += "oSection1.SetType(\"continuous\");";
+                                        }
+                                        if(oCurSection.columns.length > 1) {
+                                            sScript += "var aWidths = [], aSpaces = [];";
+                                            for(var nColumnIndex2 = 0; nColumnIndex2 < oCurSection.columns.length; ++nColumnIndex2) {
+                                                var oCurColumn = oCurSection.columns[nColumnIndex2];
+                                                var nColumnWidth = oPage.convertPixToTwips(oCurColumn.maxX - oCurColumn.minX);
+                                                sScript += "aWidths.push(" + nColumnWidth + ");";
+                                                if(nColumnIndex2 < oCurSection.columns.length - 1) {
+                                                    var nSpaceAfterColumn = oPage.convertPixToTwips(oCurSection.columns[nColumnIndex2 + 1].minX - oCurColumn.maxX);
+                                                    sScript += "aSpaces.push(" + nSpaceAfterColumn + ");";
+                                                }
+                                            }
+                                            sScript += "oSection1.SetNotEqualColumns(aWidths, aSpaces);";
+                                        }
+                                    }
+                                    else {
+                                        sScript += '\noParagraph = Api.CreateParagraph();\n';
+                                        sScript += "oDocument.Push(oParagraph);";
+                                    }
+                                    if(j === 0 && z === 0 && nColumnIndex === 0) {
+                                        sScript += "oFirstSectionPar = oParagraph;";
+                                    }
+                                    sScript += '\noParagraph.SetJc("left");\n';
+                                    var oFirstLine = oCurParagraph.lines[0];
+                                    sScript += "oParagraph.SetSpacingAfter(0, false);";
+                                    if(oFirstLine) {
+                                        sScript += "oParagraph.SetIndFirstLine(" + oPage.convertPixToTwips(oFirstLine.bbox.x0 - oBlock.bbox.x0) + ");";
+
+
+                                        if(oLastParagraph) {
+                                            var oLastLine = oLastParagraph.lines[oLastParagraph.lines.length - 1];
+                                            if(oLastLine) {
+                                                sScript += "oParagraph.SetSpacingBefore(" + oPage.convertPixToTwips(oFirstLine.bbox.y0 - oLastLine.bbox.y1) + ", false);";
+
+                                            }
+                                        }
+                                    }
+                                    if(oCurParagraph.lines.length > 1) {
+                                        var nSpacing = ((1.0 + (oCurParagraph.lines[1].bbox.y0 - oCurParagraph.lines[0].bbox.y1) / (oCurParagraph.lines[1].bbox.y1 - oCurParagraph.lines[1].bbox.y0)) * 240) >> 0;
+                                        sScript += "oParagraph.SetSpacingLine(" + nSpacing + ", \"auto\");"
+                                    }
+                                    oLastParagraph = oCurParagraph;
+                                    for(var t = 0; t < oCurParagraph.lines.length; ++t){
+                                        var oCurLine = oCurParagraph.lines[t];
+                                        for(var k = 0; k < oCurLine.words.length; ++k){
+                                            var oWord = oCurLine.words[k];
+                                            var sText = oWord.text + (k < oCurLine.words.length - 1 ? ' ' : '');
+                                            sText = escapeHtml(sText);
+                                            sScript += '\noRun = oParagraph.AddText(\'' + sText + '\');\n';
+                                            sScript += '\noTextPr = oRun.GetTextPr();\n';
+                                            sScript += '\noTextPr.SetColor(0, 0, 0, false);\n';
+                                            // var arrFontName = oWord.font_name.split('_');
+                                            var sFontName = oWord.font_name;
+                                            if(sFontName.length > 0) {
+                                                sScript += '\noTextPr.SetFontFamily(\'' + sFontName + '\');\n';
+                                            }
+                                            if(oWord.is_bold){
+                                                sScript += '\noTextPr.SetBold(true);\n';
+                                            }
+                                            else {
+                                                sScript += '\noTextPr.SetBold(false);\n';
+                                            }
+                                            if(oWord.is_italic){
+                                                sScript += '\noTextPr.SetItalic(true);\n';
+                                            }
+                                            else {
+                                                sScript += '\noTextPr.SetItalic(false);\n';
+                                            }
+
+                                            if(oWord.is_underlined){
+                                                sScript += '\noTextPr.SetUnderline(true);\n';
+                                            }
+                                            else {
+                                                sScript += '\noTextPr.SetUnderline(false);\n';
+                                            }
+                                            if(oWord.is_smallcaps){
+                                                sScript += '\noTextPr.SetSmallCaps(true);\n';
+                                            }
+                                            else {
+                                                sScript += '\noTextPr.SetSmallCaps(false);\n';
+                                            }
+                                            sScript += '\noTextPr.SetFontSize(' + ((oWord.font_size * 2)) + ');\n';
+                                        }
+                                    }
+                                }
+
+                            }
+                        }
+                    }
+                }
+                for(var z = 0; z < oCurSection.images.length; ++z) {
+                    var oBlock = oCurSection.images[z];
+                    if(MAP_TESSERACT_AREAS[oBlock.blocktype] === AREA_TYPE_IMAGE) {
+                        var nWidth = oPage.convertPixToEMU(oBlock.bbox.x1 - oBlock.bbox.x0);
+                        var nHeight = oPage.convertPixToEMU(oBlock.bbox.y1 - oBlock.bbox.y0);
+                        var sImage = oPage.getImageData(oBlock.bbox.x0, oBlock.bbox.y0, oBlock.bbox.x1 - oBlock.bbox.x0, oBlock.bbox.y1 - oBlock.bbox.y0);
+                        sScript += "var oImage = Api.CreateImage(\"" + sImage+"\", "+nWidth +", "+nHeight +");";
+                        sScript += "oImage.SetWrappingStyle(\"square\");";
+                        sScript += "oImage.SetDistances(0, 0, 0, 0);";
+                        sScript += "oImage.SetHorPosition(\"page\", "+oPage.convertPixToEMU(oBlock.bbox.x0)+");";
+                        sScript += "oImage.SetVerPosition(\"page\", "+oPage.convertPixToEMU(oBlock.bbox.y0)+");";
+                        sScript += "oFirstSectionPar.AddDrawing(oImage);";
+                    }
+                }
             }
-            sScript += '\noDocument.InsertContent(arrInsertResult);';
             window.Asc.plugin.info.recalculate = true;
             this.executeCommand("close", sScript);
         }
@@ -324,7 +559,7 @@
 		elem = document.getElementById("load-file-button-id");
 		if (elem){
 			elem.innerHTML = window.Asc.plugin.tr("Load File");
-		}	
+		}
 		elem = document.getElementById("label2");
 		if (elem){
 			elem.innerHTML = window.Asc.plugin.tr("Choose language");
@@ -344,5 +579,5 @@
 			elem.innerHTML = sInnerHtml;
 		}
 	};
-	
+
 	})(window, undefined);
