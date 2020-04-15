@@ -380,8 +380,31 @@
         this.history = new CHistory(this);
         this.curPoint = -1;
     }
+    CRecognition.prototype.updateView = function() {
+        this.updateInterfaceState();
+        this.updateReviewDiv(this.getCurPage());
+        this.drawing.overlay.update();
+    };
+    CRecognition.prototype.useHistory = function(fAction, fUndo) {
+        this.history.useHistory(fAction, fUndo);
+    };
     CRecognition.prototype.addPageFromFile = function(oFile) {
-        this.pages.push(new CPage(oFile, this));
+        var aOldPages = this.pages.splice(0);
+        var aNewPages = [new CPage(oFile, this)];
+        var _t = this;
+
+        var aOldSelected = this.selectedObjects.slice(0);
+        this.useHistory(function () {
+            _t.pages = aNewPages;
+            _t.drawing.goToPage(_t.pages.length - 1);
+            _t.selectedObjects.length = 0;
+            _t.updateView();
+        }, function () {
+            _t.pages = aOldPages;
+            _t.drawing.goToPage(_t.pages.length - 1);
+            _t.selectedObjects = aOldSelected;
+            _t.updateView();
+        });
     };
     CRecognition.prototype.setDrawing = function(oDrawing) {
         this.drawing = oDrawing;
@@ -522,7 +545,7 @@
         $("#text-container-div").append(oParentDiv);
     };
     CRecognition.prototype.onPageUpdate = function(oPage) {
-        this.updateReviewDiv(oPage);
+        this.updateView();
         this.drawing.onPageUpdate(oPage);
     };
     CRecognition.prototype.drawPage = function(nIndex, oCtx) {
@@ -607,7 +630,7 @@
         oPairs.sort(function (a, b) {
             return a.idx - b.idx;
         });
-        this.history.useHistory(function () {
+        this.useHistory(function () {
             for(var i = oPairs.length - 1; i > -1 ; --i) {
                 oPage.data.blocks.splice(oPairs[i].idx, 1);
             }
@@ -758,7 +781,7 @@
                     await oScheduler.terminate();
                 }
                 var aOldBlocks = [];
-                this.history.useHistory(function () {
+                this.useHistory(function () {
                     for(var i = 0; i < aIndexes.length; ++i) {
                         aOldBlocks[i] = oPage.data.blocks[aIndexes[i]];
                         if(results[i].data.blocks[0] && results[i].data.blocks[0].paragraphs[0]) {
@@ -778,14 +801,14 @@
     };
     CRecognition.prototype.updateInterfaceState = function() {
        var oCurPage = this.getCurPage();
-       if(!oCurPage || this.drawing.bRecognized) {
-            $("#load-file-button-id").attr("disabled", this.drawing.bRecognized);
+       if(!oCurPage || this.drawing.bRecognition) {
+            $("#load-file-button-id").attr("disabled", this.drawing.bRecognition);
             $('#recognize-button').attr("disabled", true);
             $('#delete-area-button').attr("disabled", true);
             $('#text-area-button').attr("disabled", true);
             $('#picture-area-button').attr("disabled", true);
-            $('#undo-button').attr("disabled", true);
-            $('#redo-button').attr("disabled", true);
+            $('#undo-button').attr("disabled", this.drawing.bRecognition || !this.history.canUndo());
+            $('#redo-button').attr("disabled", this.drawing.bRecognition || !this.history.canRedo());
             $('#recognize-blocks-button').attr("disabled", true);
             $('#lang-select').attr("disabled", true);
        }
@@ -795,8 +818,8 @@
            $('#delete-area-button').attr("disabled", this.selectedObjects.length === 0);
            $('#text-area-button').attr("disabled", oCurPage.data === null );
            $('#picture-area-button').attr("disabled", oCurPage.data === null );
-           $('#undo-button').attr("disabled", !this.history.canUndo());
-           $('#redo-button').attr("disabled", !this.history.canRedo());
+           $('#undo-button').attr("disabled", this.drawing.bRecognized || !this.history.canUndo());
+           $('#redo-button').attr("disabled", this.drawing.bRecognized || !this.history.canRedo());
            $('#recognize-blocks-button').attr("disabled", false);
            $('#lang-select').attr("disabled", false);
        }
@@ -1512,7 +1535,7 @@
         }
         var aTracks = recognition.tracks.slice();
         var aSelected  = recognition.selectedObjects.slice();
-        this.recognition.history.useHistory(function () {
+        this.recognition.useHistory(function () {
             for(var i = 0; i < aTracks.length; ++i) {
                 aTracks[i].trackEnd();
             }
@@ -1566,7 +1589,7 @@
         }
         var aSelected = this.recognition.selectedObjects.slice();
         var aTracks =  recognition.tracks.slice();
-        this.recognition.history.useHistory(function () {
+        this.recognition.useHistory(function () {
             for(var i = 0; i < aTracks.length; ++i) {
                 aTracks[i].trackEnd();
             }
@@ -1615,7 +1638,7 @@
         var recognition = this.recognition;
         var aSelected = this.recognition.selectedObjects.slice();
         var aTracks =  recognition.tracks.slice();
-        this.recognition.history.useHistory(function () {
+        this.recognition.useHistory(function () {
             for(var i = 0; i < aTracks.length; ++i) {
                 aTracks[i].trackEnd();
             }
@@ -1884,12 +1907,22 @@
     }
 
     CHistory.prototype.useHistory = function(fAction, fUndo){
-
-        var oPoint = {
-            undo: fUndo,
-            redo: fAction
+        var r = this.recognition;
+        var aSelectedOld = r.selectedObjects.slice(0);
+        var fUndo_ = function () {
+            fUndo();
+            r.selectedObjects = aSelectedOld;
         };
         fAction();
+        var aSelectedNew = r.selectedObjects.slice(0);
+        var fRedo_ = function () {
+            fAction();
+            r.selectedObjects = aSelectedNew;
+        };
+        var oPoint = {
+            undo: fUndo_,
+            redo: fRedo_
+        };
         this.points.splice(this.index + 1, this.points.length - this.index + 1, oPoint);
         this.index++;
         this.recognition.updateInterfaceState();
@@ -1969,19 +2002,6 @@
                 }
             }
         }
-    };
-    CPage.prototype.startRecognize = function() {
-
-        (async () => {
-            var fProgress = this.parent.drawing.startRecognitionMask();
-            const worker = await this.createWorker(fProgress, this.getDPI(), Tesseract.PSM.AUTO);
-            const { data} = await worker.recognize(this.img.canvas);
-            await worker.terminate();
-            this.data = data;
-            this.postProcessData();
-            this.parent.drawing.stopRecognitionMask();
-            this.onPageUpdate();
-        })();
     };
     CPage.prototype.draw = function(oCtx) {
         this.img.draw(oCtx);

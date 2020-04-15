@@ -205,11 +205,7 @@
 			arrFiles = arrFiles2;
             if(arrFiles.length > 0){
                 window.Asc.plugin.resizeWindow(800, 571, 800, 571);
-
-                for(i = 0; i < arrFiles.length; ++i) {
-                    oRecognition.addPageFromFile(arrFiles[i]);
-                }
-                oDrawing.goToPage(0);
+                oRecognition.addPageFromFile(arrFiles[0]);
             }
         });
         $('#recognize-button').click(
