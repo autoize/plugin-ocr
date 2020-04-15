@@ -70,15 +70,12 @@
         });
 
         $(window).on('keydown', function (event) {
-            console.log("keydown " + event.ctrlKey);
             oParent.stopScroll = !!(event.ctrlKey || event.metakey);
         });
         $(window).on('keypress', function (event) {
-            console.log("keypress " + event.ctrlKey);
             oParent.stopScroll = !!(event.ctrlKey || event.metakey);
         });
         $(window).on('keyup', function (event) {
-            console.log("keyup " + event.ctrlKey);
             oParent.stopScroll = !!(event.ctrlKey || event.metakey);
         });
 

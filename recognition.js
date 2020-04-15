@@ -437,8 +437,15 @@
         }
     };
     CRecognition.prototype.isRecognizedBlock = function(oBlock) {
-        if(oBlock.bRecognized === false && !this.isImage(oBlock)) {
+        if(this.isImage(oBlock)) {
+            return true;
+        }
+        if(oBlock.bRecognized === false) {
             return false;
+        }
+        var oPage = this.getCurPage();
+        if(oPage && oPage.data) {
+            return oPage.data.lang === this.getLangParam();
         }
         return  true;
     };
@@ -661,7 +668,7 @@
         return true;
     };
     CRecognition.prototype.getLangParam = function() {
-        return "eng";
+        return $('#lang-select option:selected')[0].value;
     };
     CRecognition.prototype.createTesseractParams = function(mode, dpi) {
        return {
@@ -693,6 +700,7 @@
                     })
                     .then(function (data) {
                         oPage.data = data;
+                        oPage.data.lang = _t.getLangParam();
                         oPage.postProcessData();
                         _t.drawing.stopRecognitionMask();
                         oPage.onPageUpdate();
@@ -714,6 +722,7 @@
                     const {data} = await worker.recognize(oPage.img.canvas);
                     await worker.terminate();
                     oPage.data = data;
+                    oPage.data.lang = this.getLangParam();
                     oPage.postProcessData();
                     _t.drawing.stopRecognitionMask();
                     oPage.onPageUpdate();
@@ -727,15 +736,23 @@
             for(var i = 0; i < aBlocks.length; ++i) {
                 oBlock = aBlocks[i];
                 if(MAP_TESSERACT_AREAS[oBlock.blocktype] === AREA_TYPE_TEXT) {
-                    if(oBlock.bRecognized === false) {
+                    if(!this.isRecognizedBlock(oBlock)) {
                         var bb = oBlock.bbox;
-                        rectangles.push({left: bb.x0, top: bb.y0, width: bb.x1 - bb.x0, height: bb.y1 - bb.y0});
+                        var nDelta = 5;
+                        var x0 = Math.max(0, bb.x0 - nDelta);
+                        var y0 = Math.max(0, bb.y0 - nDelta);
+                        var x1 = Math.min(oPage.getWidth(), bb.x1 + nDelta);
+                        var y1 = Math.min(oPage.getHeight(), bb.y1 + nDelta);
+                        var oBox = {left: x0, top: y0, width: x1 - x0, height: y1 - y0};
+                        rectangles.push(oBox);
                         aIndexes.push(i);
                     }
                 }
             }
             if(rectangles.length > 0) {
                 var results;
+                var newLang = this.getLangParam();
+                var oldLang = oPage.data.lang;
                 if(this.checkOldTesseract()) {
 
                 }
@@ -782,6 +799,8 @@
                 }
                 var aOldBlocks = [];
                 this.useHistory(function () {
+
+                    oPage.data.lang = newLang;
                     for(var i = 0; i < aIndexes.length; ++i) {
                         aOldBlocks[i] = oPage.data.blocks[aIndexes[i]];
                         if(results[i].data.blocks[0] && results[i].data.blocks[0].paragraphs[0]) {
@@ -791,6 +810,7 @@
                     }
                     oPage.onPageUpdate();
                 }, function () {
+                    oPage.data.lang = oldLang;
                     for(var i = 0; i < aIndexes.length; ++i) {
                         oPage.data.blocks[aIndexes[i]] = aOldBlocks[i];
                     }
@@ -818,8 +838,8 @@
            $('#delete-area-button').attr("disabled", this.selectedObjects.length === 0);
            $('#text-area-button').attr("disabled", oCurPage.data === null );
            $('#picture-area-button').attr("disabled", oCurPage.data === null );
-           $('#undo-button').attr("disabled", this.drawing.bRecognized || !this.history.canUndo());
-           $('#redo-button').attr("disabled", this.drawing.bRecognized || !this.history.canRedo());
+           $('#undo-button').attr("disabled", !this.history.canUndo());
+           $('#redo-button').attr("disabled", !this.history.canRedo());
            $('#recognize-blocks-button').attr("disabled", false);
            $('#lang-select').attr("disabled", false);
        }
@@ -2105,7 +2125,7 @@
 
                 var bb = oBlock.bbox;
                 var fAlpha = 0.3;
-                oDrawing.drawBlockRect(oCtx, bb.x0, bb.y0, bb.x1, bb.y1, sColor, fAlpha, !(oBlock.bRecognized === false) || MAP_TESSERACT_AREAS[oBlock.blocktype] !== AREA_TYPE_TEXT);
+                oDrawing.drawBlockRect(oCtx, bb.x0, bb.y0, bb.x1, bb.y1, sColor, fAlpha, this.parent.isRecognizedBlock(oBlock));
             }
         }
     };

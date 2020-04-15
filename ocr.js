@@ -213,6 +213,11 @@
                 oRecognition.startRecognize();
             }
         );
+
+        $("#lang-select").change(function () {
+            oRecognition.onPageUpdate(oRecognition.getCurPage());
+        });
+
         oRecognition.updateInterfaceState();
     };
 
