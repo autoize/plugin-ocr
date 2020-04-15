@@ -814,6 +814,67 @@
            $('#recognize-blocks-button').attr("disabled", false);
            $('#lang-select').attr("disabled", false);
        }
+        $("#delete-area-button").attr("title", function () {
+            if( $("#delete-area-button").attr("disabled") === "disabled") {
+                return null;
+            }
+            var sVal = "Delete area";
+            if(window.Asc.plugin.tr) {
+                sVal = window.Asc.plugin.tr(sVal);
+            }
+            return sVal;
+        });
+        $("#text-area-button").attr("title", function () {
+            if( $("#text-area-button").attr("disabled") === "disabled") {
+                return null;
+            }
+            var sVal = "Draw text area";
+            if(window.Asc.plugin.tr) {
+                sVal = window.Asc.plugin.tr(sVal);
+            }
+            return sVal;
+        });
+        $("#picture-area-button").attr("title", function () {
+            if( $("#picture-area-button").attr("disabled") === "disabled") {
+                return null;
+            }
+            var sVal = "Draw picture area";
+            if(window.Asc.plugin.tr) {
+                sVal = window.Asc.plugin.tr(sVal);
+            }
+            return sVal;
+        });
+        $("#undo-button").attr("title", function () {
+            if( $("#undo-button").attr("disabled") === "disabled") {
+                return null;
+            }
+            var sVal = "Undo" ;
+            if(window.Asc.plugin.tr) {
+                sVal = window.Asc.plugin.tr(sVal);
+            }
+            return sVal;
+        });
+        $("#redo-button").attr("title",  function () {
+            if( $("#redo-button").attr("disabled") === "disabled") {
+                return null;
+            }
+            var sVal = "Redo";
+            if(window.Asc.plugin.tr) {
+                sVal = window.Asc.plugin.tr(sVal);
+            }
+            return sVal;
+        });
+        $("#recognize-blocks-button").attr("title",function () {
+            if( $("#recognize-blocks-button").attr("disabled") === "disabled") {
+                return null;
+            }
+            var sVal = "Recognize not recognized blocks" ;
+            if(window.Asc.plugin.tr) {
+                sVal = window.Asc.plugin.tr(sVal);
+            }
+            return sVal;
+        });
+
     };
 
 
