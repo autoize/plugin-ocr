@@ -520,10 +520,6 @@
             }
         }
         $("#text-container-div").append(oParentDiv);
-        panzoom(oParentDiv[0], {  beforeMouseDown: function(e) {
-                var shouldIgnore = !e.altKey;
-                return shouldIgnore;
-            }})
     };
     CRecognition.prototype.onPageUpdate = function(oPage) {
         this.updateReviewDiv(oPage);
