@@ -377,7 +377,7 @@
         this.tracks = [];
         this.state = new NullState(this);
 
-        this.history = [];
+        this.history = new CHistory(this);
         this.curPoint = -1;
     }
     CRecognition.prototype.addPageFromFile = function(oFile) {
@@ -421,7 +421,7 @@
     };
     CRecognition.prototype.updateReviewDiv = function(oPage) {
         $("#text-container-div").empty();
-        if(!oPage.data || !oPage.data.hocr) {
+        if(!oPage || !oPage.data || !oPage.data.hocr) {
             return;
         }
         $("#text-container-div").css("overflow", "hidden");
@@ -607,7 +607,7 @@
         oPairs.sort(function (a, b) {
             return a.idx - b.idx;
         });
-        oPage.history.useHistory(function () {
+        this.history.useHistory(function () {
             for(var i = oPairs.length - 1; i > -1 ; --i) {
                 oPage.data.blocks.splice(oPairs[i].idx, 1);
             }
@@ -621,21 +621,11 @@
         });
     };
     CRecognition.prototype.undo = function() {
-        var oPage = this.getCurPage();
-        if(!oPage) {
-            return;
-        }
-        var t = this;
-        oPage.history.undo();
+        this.history.undo();
         this.updateInterfaceState();
     };
     CRecognition.prototype.redo = function() {
-        var oPage = this.getCurPage();
-        if(!oPage) {
-            return;
-        }
-        var t = this;
-        oPage.history.redo();
+        this.history.redo();
         this.updateInterfaceState();
     };
     CRecognition.prototype.startAdd = function(sType) {
@@ -768,7 +758,7 @@
                     await oScheduler.terminate();
                 }
                 var aOldBlocks = [];
-                oPage.history.useHistory(function () {
+                this.history.useHistory(function () {
                     for(var i = 0; i < aIndexes.length; ++i) {
                         aOldBlocks[i] = oPage.data.blocks[aIndexes[i]];
                         if(results[i].data.blocks[0] && results[i].data.blocks[0].paragraphs[0]) {
@@ -805,8 +795,8 @@
            $('#delete-area-button').attr("disabled", this.selectedObjects.length === 0);
            $('#text-area-button').attr("disabled", oCurPage.data === null );
            $('#picture-area-button').attr("disabled", oCurPage.data === null );
-           $('#undo-button').attr("disabled", !oCurPage.history.canUndo());
-           $('#redo-button').attr("disabled", !oCurPage.history.canRedo());
+           $('#undo-button').attr("disabled", !this.history.canUndo());
+           $('#redo-button').attr("disabled", !this.history.canRedo());
            $('#recognize-blocks-button').attr("disabled", false);
            $('#lang-select').attr("disabled", false);
        }
@@ -1522,7 +1512,7 @@
         }
         var aTracks = recognition.tracks.slice();
         var aSelected  = recognition.selectedObjects.slice();
-        oPage.history.useHistory(function () {
+        this.recognition.history.useHistory(function () {
             for(var i = 0; i < aTracks.length; ++i) {
                 aTracks[i].trackEnd();
             }
@@ -1576,7 +1566,7 @@
         }
         var aSelected = this.recognition.selectedObjects.slice();
         var aTracks =  recognition.tracks.slice();
-        oPage.history.useHistory(function () {
+        this.recognition.history.useHistory(function () {
             for(var i = 0; i < aTracks.length; ++i) {
                 aTracks[i].trackEnd();
             }
@@ -1625,7 +1615,7 @@
         var recognition = this.recognition;
         var aSelected = this.recognition.selectedObjects.slice();
         var aTracks =  recognition.tracks.slice();
-        oPage.history.useHistory(function () {
+        this.recognition.history.useHistory(function () {
             for(var i = 0; i < aTracks.length; ++i) {
                 aTracks[i].trackEnd();
             }
@@ -1842,8 +1832,8 @@
         return !(this.maxX < oColumn.minX || this.minX > oColumn.maxX);
     };
 
-    function CHistory(oPage){
-        this.page = oPage;
+    function CHistory(oRecognition){
+        this.recognition = oRecognition;
         this.points = [];
         this.index = -1;
     }
@@ -1860,14 +1850,14 @@
         if(this.canUndo()) {
             var oPoint = this.points[this.index--];
             oPoint.undo();
-            this.page.onPageUpdate();
+            this.recognition.onPageUpdate(this.recognition.getCurPage());
         }
     };
     CHistory.prototype.redo = function(){
         if(this.canRedo()) {
             var oPoint = this.points[++this.index];
             oPoint.redo();
-            this.page.onPageUpdate();
+            this.recognition.onPageUpdate(this.recognition.getCurPage());
         }
     };
 
@@ -1902,7 +1892,7 @@
         fAction();
         this.points.splice(this.index + 1, this.points.length - this.index + 1, oPoint);
         this.index++;
-        this.page.parent.updateInterfaceState();
+        this.recognition.updateInterfaceState();
     };
 
     function CPage(oFile, oParent) {
@@ -1914,7 +1904,6 @@
         this.marginT = 10000000;
         this.marginR = 10000000;
         this.marginB = 10000000;
-        this.history = new CHistory(this);
     }
     CPage.prototype.getWidth = function() {
         return this.img.getWidth();
