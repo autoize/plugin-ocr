@@ -873,7 +873,14 @@
            $('#recognize-blocks-button').attr("disabled", !this.hasUnrecognized());
            $('#lang-select').attr("disabled", false);
        }
-        $("#delete-area-button").attr("title", function () {
+
+       if(oCurPage) {
+           $("#file-name-label").text(oCurPage.img.name);
+       }
+       else {
+           $("#file-name-label").text("");
+       }
+       $("#delete-area-button").attr("title", function () {
             if( $("#delete-area-button").attr("disabled") === "disabled") {
                 return null;
             }
@@ -2226,6 +2233,7 @@
         this.status = IMAGE_STATUS_LOADING;
         this.canvas = null;
         this.dpi = 300;
+        this.name = oFile.name || "";
         var oThis = this;
         if(oFile.type === "image/tiff" || oFile.type === "image/x-tiff") {
 

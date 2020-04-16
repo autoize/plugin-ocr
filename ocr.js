@@ -84,7 +84,7 @@
     var oRecognition;
     window.Asc.plugin.init = function(){
 
-        this.resizeWindow(592, 100, 592, 100, 592, 100);
+        this.resizeWindow(800, 571, 800, 571, 800, 571);
         var oImagesContainer = document.getElementById('image-container-div');
         var container = document.getElementById('scrollable-image-text-div');
         window.addEventListener("wheel", function(e){
