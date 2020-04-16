@@ -233,10 +233,14 @@ CDrawing.prototype.updateCursor = function(sType) {
         oCtx.fillRect(0, 0, this.maskCanvas.width, this.maskCanvas.height);
         oCtx.globalAlpha = 1;
         var addText = "...";
-        if(this.animCount % 3 === 0) {
+        var phase = this.animCount % 4;
+        if(phase === 0) {
+            addText = "   ";
+        }
+        else if(phase === 1) {
             addText = ".  ";
         }
-        else if(this.animCount % 3 === 1) {
+        else if(phase === 2) {
             addText = ".. ";
         }
         else {

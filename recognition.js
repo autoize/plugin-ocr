@@ -379,6 +379,7 @@
 
         this.history = new CHistory(this);
         this.worker = null;
+        this.selectionTrack = null;
     }
     CRecognition.prototype.updateView = function() {
         this.updateInterfaceState();
@@ -422,9 +423,6 @@
             }
         }
         return -1;
-    };
-    CRecognition.prototype.createBBoxDiv = function(oBBox) {
-
     };
     CRecognition.prototype.isText = function(oBlock) {
         if(MAP_TESSERACT_AREAS[oBlock.blocktype] === AREA_TYPE_TEXT) {
@@ -567,20 +565,25 @@
             oPage.drawBlockRects(this.drawing, oCtx);
         }
     };
+    CRecognition.prototype.internalDrawRect = function(oOverlay, oCtx, oBBox, sColor) {
+        if(!sColor) {
+            sColor = "#CCCCCC";
+        }
+        oOverlay.drawTrack(oCtx, oBBox.x0, oBBox.y0, oBBox.x1, oBBox.y1, sColor);
+    };
     CRecognition.prototype.updateOverlay = function(oOverlay, oCtx) {
         for(var i = 0; i < this.selectedObjects.length; ++i) {
             var oBlock = this.selectedObjects[i];
             var oBBox = oBlock.bbox;
-            var sColor = "#CCCCCC";
-            if(MAP_COLORS[MAP_TESSERACT_AREAS[oBlock.blocktype]]) {
-                sColor = MAP_COLORS[MAP_TESSERACT_AREAS[oBlock.blocktype]];
-            }
-            oOverlay.drawTrack(oCtx, oBBox.x0, oBBox.y0, oBBox.x1, oBBox.y1, sColor);
+            this.internalDrawRect(oOverlay, oCtx, oBBox, MAP_COLORS[MAP_TESSERACT_AREAS[oBlock.blocktype]]);
         }
         for(i = 0; i < this.tracks.length; ++i){
             this.tracks[i].draw(oOverlay, oCtx);
         }
-
+        if(this.selectionTrack) {
+            var b = this.selectionTrack;
+            oOverlay.drawTrackObject(oCtx, b.x0, b.y0, b.x1, b.y1, "#0c46ba", 0.15);
+        }
     };
     CRecognition.prototype.dataProcess = function () {
         var aSections = [], oSection, nPageIndex, nSectionIndex;
@@ -932,7 +935,14 @@
         });
 
     };
+    CRecognition.prototype.intersected = function (oBB1, oBB2) {
+        return !(oBB1.x0 > oBB2.x1 || oBB2.x0 > oBB1.x1 || oBB1.y0 > oBB2.y1 || oBB2.y0 > oBB1.y1);
+    };
 
+    CRecognition.prototype.isInside = function (oBB1, oBB2) {
+
+        return oBB2.x0 >= oBB1.x0 && oBB2.x1 <= oBB1.x1 && oBB2.y0 >= oBB1.y0 && oBB2.y1 <= oBB1.y1;
+    };
 
 
     var MIN_SHAPE_SIZE = 2;
@@ -1196,7 +1206,7 @@
         if(MAP_COLORS[MAP_TESSERACT_AREAS[this.originalObject.blocktype]]) {
             sColor = MAP_COLORS[MAP_TESSERACT_AREAS[this.originalObject.blocktype]];
         }
-        oOverlay.drawTrackObject(oCtx, x0, y0, x1, y1, sColor, 0.3)
+        oOverlay.drawTrackObject(oCtx, x0, y0, x1, y1, sColor, 0.3);
     };
 
 
@@ -1449,6 +1459,7 @@
         }
         this.recognition.selectedObjects.length = 0;
         this.recognition.drawing.overlay.update();
+        this.recognition.selectionTrack = {stX: x, stY: y, x0: x, y0: y, x1: x, y1: y};
     };
 
 
@@ -1457,6 +1468,22 @@
         var oPage = this.recognition.getPage(this.recognition.drawing.page);
         if(!oPage || !oPage.data) {
             return;
+        }
+        if(this.recognition.selectionTrack) {
+            var button = e.which || e.button;
+            if(button !== 1) {
+                this.recognition.selectionTrack = null;
+            }
+            else {
+                this.recognition.selectionTrack.x0 = Math.min(x, this.recognition.selectionTrack.stX);
+                this.recognition.selectionTrack.y0 = Math.min(y, this.recognition.selectionTrack.stY);
+                this.recognition.selectionTrack.x1 = Math.max(x, this.recognition.selectionTrack.stX);
+                this.recognition.selectionTrack.y1 = Math.max(y, this.recognition.selectionTrack.stY);
+                this.checkSelect();
+                this.recognition.drawing.updateCursor("default");
+                this.recognition.drawing.overlay.update();
+                return;
+            }
         }
         var aBlocks = this.recognition.selectedObjects;
         for(var i = aBlocks.length - 1; i > -1; --i) {
@@ -1522,8 +1549,28 @@
         this.recognition.drawing.updateCursor("default");
 
     };
-    NullState.prototype.onMouseUp = function (e, x, y) {
+    NullState.prototype.checkSelect = function() {
+        if(this.recognition.selectionTrack) {
+            this.recognition.selectedObjects.length = 0;
+            var oPage = this.recognition.getCurPage();
+            if(oPage && oPage.data) {
+                var aBlocks = oPage.data.blocks;
+                for(var i = aBlocks.length - 1; i > -1; --i) {
+                    var oBlock = aBlocks[i];
+                    if(this.recognition.isInside(this.recognition.selectionTrack, oBlock.bbox)) {
+                        this.recognition.selectedObjects.push(oBlock);
+                    }
+                }
+            }
+        }
+    };
 
+    NullState.prototype.onMouseUp = function (e, x, y) {
+        if(this.recognition.selectionTrack) {
+            this.checkSelect();
+            this.recognition.selectionTrack = null;
+            this.recognition.drawing.overlay.update();
+        }
     };
 
     function ResizeState(oRecognition, num, majorObject) {
