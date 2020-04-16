@@ -875,7 +875,13 @@
        }
 
        if(oCurPage) {
-           $("#file-name-label").text(oCurPage.img.name);
+           var sStatus = tr("source:") + " ";
+           sStatus += oCurPage.img.name;
+           if(oCurPage.img.status === IMAGE_STATUS_COMPLETE) {
+               sStatus += "; " + tr("width x height: ") + oCurPage.getWidth() + " x " + oCurPage.getHeight() + " " + tr("pixels");
+               sStatus += "; " + tr("resolution: ") + oCurPage.img.dpi + " dpi";
+           }
+           $("#file-name-label").text(sStatus);
        }
        else {
            $("#file-name-label").text("");
