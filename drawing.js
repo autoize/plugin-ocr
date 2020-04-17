@@ -17,6 +17,7 @@
             return oDrawing;
         }
 
+        this.bMouseCaptured = false;
         this.bRecognition = false;
         oDrawing = this;
         this.parent = oParent;
@@ -61,12 +62,30 @@
 
         $(this.fakeDivParent).mousedown(function (e) {
             oDrawing.onMouseDown(e);
+            e.stopPropagation();
+            oDrawing.bMouseCaptured = true;
         });
         $(this.fakeDivParent).mousemove(function (e) {
             oDrawing.onMouseMove(e);
+            e.stopPropagation();
         });
         $(this.fakeDivParent).mouseup(function (e) {
             oDrawing.onMouseUp(e);
+            e.stopPropagation();
+            oDrawing.bMouseCaptured = false;
+        });
+
+        $(window).mousemove(function (e) {
+
+            if( oDrawing.bMouseCaptured) {
+                oDrawing.onMouseMove(e);
+            }
+        });
+        $(window).mouseup(function (e) {
+            if( oDrawing.bMouseCaptured) {
+                oDrawing.onMouseUp(e);
+                oDrawing.bMouseCaptured = false;
+            }
         });
 
         $(window).on('keydown', function (event) {
@@ -346,7 +365,7 @@ CDrawing.prototype.updateCursor = function(sType) {
         this.updateScrolls();
     };
     CDrawing.prototype.getEventCoords = function(e) {
-        var rect = e.originalEvent.target.getBoundingClientRect();
+        var rect = this.canvas.getBoundingClientRect();
         var x = e.originalEvent.clientX - rect.left - oDrawing.fakeDivParent.scrollLeft; //x position within the element.
         var y = e.originalEvent.clientY - rect.top - oDrawing.fakeDivParent.scrollTop;  //y position within the element.
         return {x: this.convertToScreen(x), y: this.convertToScreen(y)};
@@ -481,6 +500,8 @@ CDrawing.prototype.updateCursor = function(sType) {
 
     function COverlay(oDrawing, oParent) {
         this.drawing = oDrawing;
+        this.bMouseCaptured = false;
+        var _t = this;
         var oCanvas = document.getElementById(sOCROverlayCanvasId);
         if(!oCanvas) {
             oCanvas = document.createElement("canvas");
@@ -490,12 +511,18 @@ CDrawing.prototype.updateCursor = function(sType) {
             oParent.appendChild(oCanvas);
             $(oCanvas).mousedown(function (e) {
                 oDrawing.onMouseDown(e);
+                oDrawing.bMouseCaptured = true;
+                e.stopPropagation();
             });
             $(oCanvas).mousemove(function (e) {
                 oDrawing.onMouseMove(e);
+                e.stopPropagation();
             });
             $(oCanvas).mouseup(function (e) {
+
                 oDrawing.onMouseUp(e);
+                e.stopPropagation();
+                oDrawing.bMouseCaptured = false;
             });
         }
         this.canvas = oCanvas;
