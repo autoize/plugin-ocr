@@ -98,21 +98,18 @@
             oParent.stopScroll = !!(event.ctrlKey || event.metakey);
         });
 
-        $(this.fakeDivParent).on('keydown', function (event) {
+        $(document).on('keydown', function (event) {
             oParent.stopScroll = !!(event.ctrlKey || event.metakey);
         });
-        $(this.fakeDivParent).on('keypress', function (event) {
+        $(document).on('keypress', function (event) {
             oParent.stopScroll = !!(event.ctrlKey || event.metakey);
         });
-        $(this.fakeDivParent).on('keyup', function (event) {
+        $(document).on('keyup', function (event) {
             oParent.stopScroll = !!(event.ctrlKey || event.metakey);
         });
 
         $(this.fakeDivParent).on('wheel', function (event) {
             if(oParent.stopScroll) {
-                event.stopImmediatePropagation();
-                event.stopPropagation();
-                event.preventDefault();
                 var delta = 0;
 
                 if (undefined !== event.originalEvent.wheelDelta && event.originalEvent.wheelDelta !== 0)
@@ -124,10 +121,9 @@
                     delta = event.originalEvent.detail;
                 }
                 if(delta !== 0) {
-
                     var nClientWidth = oDrawing.getClientWidth();
                     var nClientHeight = oDrawing.getClientHeight();
-                    var oImageC = oDrawing.convertScreenToImage(nClientWidth / 2 + 0.5 >> 0, nClientHeight / 2 + 0.5 >> 0);
+                    var oImageC = oDrawing.convertScreenToImage(oDrawing.convertToScreen(nClientWidth) / 2 + 0.5 >> 0, oDrawing.convertToScreen(nClientHeight) / 2 + 0.5 >> 0);
                     if(delta > 0) {
                         oDrawing.zoom += 0.1;
                     }
@@ -140,31 +136,33 @@
                     oDrawing.zoom = Math.min(32, Math.max(0.1, oDrawing.zoom));
                     oDrawing.pageX = 0;
                     oDrawing.pageY = 0;
-
                     var nPageWidth = oDrawing.getPageWidth();
                     var nPageHeight = oDrawing.getPageHeight();
-
                     oDrawing.pageX = 0;
                     oDrawing.pageY = 0;
-
-                    var oScreenC = oDrawing.convertImageToScreen(oImageC.x, oImageC.y);
-
                     if(nPageWidth <= nClientWidth) {
                         oDrawing.pageX = ((nClientWidth - nPageWidth) / 2 + 0.5) >> 0;
                     }
                     else {
-                        oDrawing.pageX = Math.min(0, (nClientWidth / 2 - oScreenC.x  + 0.5) >> 0)
+                        var DX = oDrawing.zoom*oImageC.x;
+                        oDrawing.pageX = Math.min(0, (nClientWidth / 2 - DX  + 0.5) >> 0);
+                        oDrawing.pageX = Math.max(oDrawing.pageX, nClientWidth - nPageWidth);
                     }
                     if(nPageHeight <= nClientHeight) {
                         oDrawing.pageY = ((nClientHeight - nPageHeight) / 2 + 0.5) >> 0;
                     }
                     else {
-                        oDrawing.pageY = Math.min(0, (nClientHeight / 2 - oScreenC.y  + 0.5) >> 0)
+                        var DY = oDrawing.zoom*oImageC.y;
+                        oDrawing.pageY = Math.min(0, (nClientHeight / 2 - DY  + 0.5) >> 0);
+                        oDrawing.pageY = Math.max(oDrawing.pageY, nClientHeight - nPageHeight);
                     }
-                    oParent.stopScroll = false;
                     oDrawing.drawCurPage();
                     oDrawing.updateScrolls();
+
                 }
+                event.stopImmediatePropagation();
+                event.stopPropagation();
+                event.preventDefault();
             }
         });
 
@@ -174,6 +172,9 @@
 
         $(this.fakeDivParent).on('ps-scroll-x', function () {
 
+            if(oParent.stopScroll){
+                return;
+            }
             var nOld = oDrawing.pageX;
             var nPageWidth = oDrawing.getPageWidth();
             var nClientWidth = oDrawing.getClientWidth();
@@ -188,6 +189,9 @@
             }
         });
         $(this.fakeDivParent).on('ps-scroll-y', function () {
+            if(oParent.stopScroll){
+                return;
+            }
             var nOld = oDrawing.pageY;
             var nPageHeight= oDrawing.getPageHeight();
             var nClientHeight = oDrawing.getClientHeight();
@@ -214,10 +218,37 @@
         }
         this.maskCanvas = oCanvas;
         $(this.maskCanvas).hide();
-
     }
 
-CDrawing.prototype.updateCursor = function(sType) {
+
+    CDrawing.prototype.getRelativeCoordinates = function(event, referenceElement) {
+
+        const position = {
+            x: event.pageX,
+            y: event.pageY
+        };
+
+        const offset = {
+            left: referenceElement.offsetLeft,
+            top: referenceElement.offsetTop
+        };
+
+        let reference = referenceElement.offsetParent;
+
+        while(reference){
+            offset.left += reference.offsetLeft;
+            offset.top += reference.offsetTop;
+            reference = reference.offsetParent;
+        }
+
+        return {
+            x: position.x - offset.left,
+            y: position.y - offset.top,
+        };
+
+    };
+
+    CDrawing.prototype.updateCursor = function(sType) {
 
     $(this.fakeDivParent).css("cursor", sType);
 };
@@ -368,8 +399,9 @@ CDrawing.prototype.updateCursor = function(sType) {
     };
     CDrawing.prototype.getEventCoords = function(e) {
         var rect = this.canvas.getBoundingClientRect();
-        var x = e.originalEvent.clientX - rect.left - oDrawing.fakeDivParent.scrollLeft; //x position within the element.
-        var y = e.originalEvent.clientY - rect.top - oDrawing.fakeDivParent.scrollTop;  //y position within the element.
+        var p = this.getRelativeCoordinates(e.originalEvent, this.canvas);
+        var x = p.x - oDrawing.fakeDivParent.scrollLeft; //x position within the element.
+        var y = p.y- oDrawing.fakeDivParent.scrollTop;  //y position within the element.
         return {x: this.convertToScreen(x), y: this.convertToScreen(y)};
     };
     CDrawing.prototype.onMouseDown = function(e) {
@@ -422,7 +454,6 @@ CDrawing.prototype.updateCursor = function(sType) {
             var nSize = this.convertToScreen(20);
             oCtx.font = nSize + 'px sans-serif';
             var text = oCtx.measureText(sText);
-            text.width;
             oCtx.fillStyle = "black";
             oCtx.fillText(sText, ((p1.x + p0.x) / 2 - text.width / 2 + 0.5) >> 0, ((p1.y + p0.y) / 2 + 0.5) >> 0);
 
@@ -511,21 +542,6 @@ CDrawing.prototype.updateCursor = function(sType) {
             oCanvas.style.cssText = sCanvasStyle;
             oCanvas.style.zIndex = "2";
             oParent.appendChild(oCanvas);
-            $(oCanvas).mousedown(function (e) {
-                oDrawing.onMouseDown(e);
-                oDrawing.bMouseCaptured = true;
-                e.stopPropagation();
-            });
-            $(oCanvas).mousemove(function (e) {
-                oDrawing.onMouseMove(e);
-                e.stopPropagation();
-            });
-            $(oCanvas).mouseup(function (e) {
-
-                oDrawing.onMouseUp(e);
-                e.stopPropagation();
-                oDrawing.bMouseCaptured = false;
-            });
         }
         this.canvas = oCanvas;
     }
