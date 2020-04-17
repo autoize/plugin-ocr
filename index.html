@@ -70,6 +70,22 @@
         margin-right: 7px;
         margin-left: 7px;
     }
+
+
+    .icon-button {
+        border: 0px;
+        background-color: #F7F7F7;
+    }
+    .icon-button[disabled]:hover,
+    .icon-button.disabled:hover,
+    .icon-button[disabled]:active,
+    .icon-button[disabled].active,
+    .icon-button.disabled:active,
+    .icon-button.disabled.active {
+        background-color: #F7F7F7 !important;
+        color: #444444;
+        cursor: default;
+    }
 </style>
 <body style="box-sizing:border-box; width: 100%; height: 100%; margin: 0; background: #F7F7F7;">
     <div style="height: 100%; width: 100%">
@@ -81,7 +97,7 @@
                         <input style="display: none" type="file" id="images-input" accept='image/jpeg,image/png, image/tiff' />
                     </div>
                 </div>
-                <div class="separator"></div>
+                <div class="separator noselect"></div>
                 <div class="noselect">
                     <button class="btn-text-default" id='recognize-button' style="height: 30px; padding: 0px;" disabled>Analyze and recognize</button>
                     <select name = 'lang_combo' disabled  class="noselect" id='lang-select' style="width: 125px; margin-top: 5px">
@@ -148,24 +164,24 @@
                         <option value = 'slk'>Slovak</option>
                     </select>
                 </div>
-                <div class="separator"></div>
+                <div class="separator noselect"></div>
                 <div>
-                    <button  class="btn-text-default" id='undo-button' style="width: 30px; height: 30px; padding: 0px">
+                    <button  class="btn-text-default icon-button" id='undo-button' style="width: 30px; height: 30px; padding: 0px">
                         <img src="undo.png" style="width: 20px; height: 20px; margin: 4px">
                     </button>
-                    <button  class="btn-text-default" id='redo-button' style="width: 30px; height: 30px; padding: 0px">
+                    <button  class="btn-text-default icon-button" id='redo-button' style="width: 30px; height: 30px; padding: 0px">
                         <img src="redo.png" style="width: 20px; height: 20px; margin: 4px">
                     </button>
                 </div>
-                <div class="separator"></div>
+                <div class="separator noselect"></div>
                 <div>
-                    <button  class="btn-text-default" id='delete-area-button' style="width: 30px; height: 30px; padding: 0px">
+                    <button  class="btn-text-default icon-button" id='delete-area-button' style="width: 30px; height: 30px; padding: 0px">
                         <img src="remove.png" style="width: 20px; height: 20px; margin: 4px">
                     </button>
-                    <button  class="btn-text-default" id='text-area-button' style="width: 30px; height: 30px; padding: 0px" >
+                    <button  class="btn-text-default icon-button" id='text-area-button' style="width: 30px; height: 30px; padding: 0px" >
                         <img src="text.png" style="width: 20px; height: 20px; margin: 4px">
                     </button>
-                    <button  class="btn-text-default" id='picture-area-button' style="width: 30px; height: 30px; padding: 0px">
+                    <button  class="btn-text-default icon-button" id='picture-area-button' style="width: 30px; height: 30px; padding: 0px">
                         <img src="image.png" style="width: 20px; height: 20px; margin: 4px">
                     </button>
                     <button  class="btn-text-default" id='recognize-blocks-button' style="height: 30px;">
@@ -178,7 +194,7 @@
             <div style="display: inline-block; width: calc(50% - 20px); height: 100%; border: 1px; position: relative;" id="image-container-div" class="noselect">
 
             </div>
-            <div class="separator" style="height: 100%; margin: 0px"></div>
+            <div class="separator noselect" style="height: 100%; margin: 0px"></div>
             <div id="text-container-div" style="display: inline-block; width: calc(50% - 24px); height: 100%; border: 1px; overflow: hidden">
 
             </div>
