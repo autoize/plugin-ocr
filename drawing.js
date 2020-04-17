@@ -399,9 +399,8 @@
     };
     CDrawing.prototype.getEventCoords = function(e) {
         var rect = this.canvas.getBoundingClientRect();
-        var p = this.getRelativeCoordinates(e.originalEvent, this.canvas);
-        var x = p.x - oDrawing.fakeDivParent.scrollLeft; //x position within the element.
-        var y = p.y- oDrawing.fakeDivParent.scrollTop;  //y position within the element.
+        var x = e.originalEvent.clientX - rect.left - oDrawing.fakeDivParent.scrollLeft; //x position within the element.
+        var y = e.originalEvent.clientY - rect.top - oDrawing.fakeDivParent.scrollTop;  //y position within the element.
         return {x: this.convertToScreen(x), y: this.convertToScreen(y)};
     };
     CDrawing.prototype.onMouseDown = function(e) {
