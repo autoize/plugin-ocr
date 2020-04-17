@@ -213,6 +213,8 @@
             oParent.appendChild(oCanvas);
         }
         this.maskCanvas = oCanvas;
+        $(this.maskCanvas).hide();
+
     }
 
 CDrawing.prototype.updateCursor = function(sType) {
