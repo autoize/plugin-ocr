@@ -221,37 +221,10 @@
     }
 
 
-    CDrawing.prototype.getRelativeCoordinates = function(event, referenceElement) {
-
-        const position = {
-            x: event.pageX,
-            y: event.pageY
-        };
-
-        const offset = {
-            left: referenceElement.offsetLeft,
-            top: referenceElement.offsetTop
-        };
-
-        let reference = referenceElement.offsetParent;
-
-        while(reference){
-            offset.left += reference.offsetLeft;
-            offset.top += reference.offsetTop;
-            reference = reference.offsetParent;
-        }
-
-        return {
-            x: position.x - offset.left,
-            y: position.y - offset.top,
-        };
-
-    };
-
     CDrawing.prototype.updateCursor = function(sType) {
 
-    $(this.fakeDivParent).css("cursor", sType);
-};
+        $(this.fakeDivParent).css("cursor", sType);
+    };
 
     CDrawing.prototype.startRecognitionMask = function() {
 
@@ -399,8 +372,8 @@
     };
     CDrawing.prototype.getEventCoords = function(e) {
         var rect = this.canvas.getBoundingClientRect();
-        var x = e.originalEvent.clientX - rect.left - oDrawing.fakeDivParent.scrollLeft; //x position within the element.
-        var y = e.originalEvent.clientY - rect.top - oDrawing.fakeDivParent.scrollTop;  //y position within the element.
+        var x = e.originalEvent.clientX - rect.left; //x position within the element.
+        var y = e.originalEvent.clientY - rect.top;  //y position within the element.
         return {x: this.convertToScreen(x), y: this.convertToScreen(y)};
     };
     CDrawing.prototype.onMouseDown = function(e) {
@@ -485,15 +458,17 @@
         this.overlay.update();
     };
     CDrawing.prototype.onPageUpdate = function(oPage) {
-        if(oPage === this.recognition.getPage(this.page)) {
-            if(oPage.getWidth() !== this.pageWidth || oPage.getHeight() !== this.pageHeight) {
-                this.goToPage(this.page);
-            }
-            else {
-                this.drawCurPage();
-                this.overlay.update();
-                this.updateScrolls();
-            }
+        if(oPage === this.recognition.getPage(this.page) &&
+            this.pageWidth === oPage.getWidth() &&
+            this.pageHeight === oPage.getHeight()) {
+            this.drawCurPage();
+            this.overlay.update();
+            this.updateScrolls();
+        }
+        else {
+            this.goToPage(this.page);
+            this.pageWidth = oPage.getWidth();
+            this.pageHeight = oPage.getHeight();
         }
     };
     CDrawing.prototype.getPageWidth = function() {
