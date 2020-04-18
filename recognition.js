@@ -621,6 +621,19 @@
     CRecognition.prototype.getCurPage = function() {
         return this.pages[this.drawing.page];
     };
+
+    CRecognition.prototype.selectAll = function() {
+        var oPage = this.getCurPage();
+        if(!oPage || !oPage.data) {
+            return;
+        }
+      this.selectedObjects.length = 0;
+
+      for(var i = oPage.data.blocks.length - 1; i > -1; --i) {
+          this.selectedObjects.push(oPage.data.blocks[i]);
+      }
+      oPage.onPageUpdate();
+    };
     CRecognition.prototype.deleteSelectedBlocks = function() {
         var oPage = this.getCurPage();
         if(!oPage) {

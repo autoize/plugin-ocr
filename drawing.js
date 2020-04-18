@@ -93,7 +93,46 @@
         });
 
         $(window).on('keydown', function (event) {
-            oParent.stopScroll = !!(event.ctrlKey || event.metakey);
+            var bCtrlKey = !!(event.ctrlKey || event.metakey);
+            var bShiftKey = !!event.shiftKey;
+            oParent.stopScroll = bCtrlKey;
+            var bPrevent = false;
+            switch (event.which) {
+                case 65: {//a
+                    if(bCtrlKey) {
+                        oDrawing.recognition.selectAll();
+                        bPrevent = true;
+                    }
+                    break;
+                }
+                case 89: { //y
+                    if(bCtrlKey) {
+                        oDrawing.recognition.redo();
+                        bPrevent = true;
+                    }
+                    break;
+                }
+                case 90: {//z
+                    if(bCtrlKey) {
+                        if(bShiftKey) {
+                            oDrawing.recognition.redo();
+                        }
+                        else {
+                            oDrawing.recognition.undo();
+                        }
+                        bPrevent = true;
+                    }
+                    break;
+                }
+                case 8://backspace
+                case 46: {//delete
+                    oDrawing.recognition.deleteSelectedBlocks();
+                    break;
+                }
+            }
+            if(bPrevent) {
+                event.preventDefault();
+            }
         });
         $(window).on('keypress', function (event) {
             oParent.stopScroll = !!(event.ctrlKey || event.metakey);
