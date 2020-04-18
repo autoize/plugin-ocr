@@ -67,18 +67,22 @@
         });
         $(this.fakeDivParent).mousemove(function (e) {
             oDrawing.onMouseMove(e);
-            e.stopPropagation();
+            if(oDrawing.bMouseCaptured) {
+                e.stopPropagation();
+            }
         });
         $(this.fakeDivParent).mouseup(function (e) {
             oDrawing.onMouseUp(e);
-            e.stopPropagation();
+            if(oDrawing.bMouseCaptured) {
+                e.stopPropagation();
+            }
             oDrawing.bMouseCaptured = false;
         });
 
         $(window).mousemove(function (e) {
-
             if( oDrawing.bMouseCaptured) {
                 oDrawing.onMouseMove(e);
+                //TODO: Do scrolling to hidden point position
             }
         });
         $(window).mouseup(function (e) {
@@ -467,8 +471,14 @@
         }
         else {
             this.goToPage(this.page);
-            this.pageWidth = oPage.getWidth();
-            this.pageHeight = oPage.getHeight();
+            if(oPage) {
+                this.pageWidth = oPage.getWidth();
+                this.pageHeight = oPage.getHeight();
+            }
+            else {
+                this.pageWidth = -1;
+                this.pageHeight = -1;
+            }
         }
     };
     CDrawing.prototype.getPageWidth = function() {
