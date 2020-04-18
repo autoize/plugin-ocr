@@ -959,9 +959,10 @@
 
 
     var MIN_SHAPE_SIZE = 2;
-    function ResizeTrack(originalObject, nHandle) {
+    function ResizeTrack(originalObject, nHandle, oPage) {
         this.bLastCenter = false;
         this.bIsTracked = false;
+        this.page = oPage;
         this.bRecognized = originalObject.bRecognized;
         this.originalObject = originalObject;
         this.numberHandle = nHandle;
@@ -1007,8 +1008,8 @@
 
         this.originalExtX = extX;
         this.originalExtY = extY;
-        this.originalFlipH = _flip_h;
-        this.originalFlipV = _flip_v;
+        this.originalFlipH = _flip_h === true;
+        this.originalFlipV = _flip_v === true;
         this.usedExtX =  this.originalExtX === 0 ? (/*this.lineFlag ? this.originalExtX :*/ 0.01) : this.originalExtX;
         this.usedExtY =  this.originalExtY === 0 ? (/*this.lineFlag ? this.originalExtY :*/ 0.01) : this.originalExtY;
 
@@ -1042,7 +1043,7 @@
         var _new_used_half_width;
         var _new_used_half_height;
         var _temp;
-
+        var r;
 
         switch (this.numberHandle)
         {
@@ -1066,33 +1067,13 @@
                 _abs_height = Math.abs(_real_height);
 
                 this.resizedExtY = _abs_height >= MIN_SHAPE_SIZE  ? _abs_height : MIN_SHAPE_SIZE;
-
-
                 this.resizedExtY = _abs_height >= MIN_SHAPE_SIZE  ? _abs_height : MIN_SHAPE_SIZE;
-                if(_real_height < 0 )
-                {
-                    this.resizedflipV = !this.originalFlipV;
-                }
-                else
-                {
-                    this.resizedflipV = this.originalFlipV;
-                }
-
 
                 _new_resize_half_width = this.resizedExtX*0.5;
                 _new_resize_half_height = this.resizedExtY*0.5;
-                    _new_used_half_width = _new_resize_half_width;
-                if(this.resizedflipV !== this.originalFlipV)
-                {
-                    _new_used_half_height = -_new_resize_half_height;
-                }
-                else
-                {
-                    _new_used_half_height = _new_resize_half_height;
-                }
-
-                this.resizedPosX = this.fixedPointX + (-_new_used_half_width) - _new_resize_half_width;
-                this.resizedPosY = this.fixedPointY + (- _new_used_half_height) - _new_resize_half_height;
+                 r = this.checkFlips(_real_width, _real_height, _new_resize_half_width, _new_resize_half_height);
+                this.resizedPosX = this.fixedPointX + (-r._new_used_half_width) - _new_resize_half_width;
+                this.resizedPosY = this.fixedPointY + (-r._new_used_half_height) - _new_resize_half_height;
                 break;
             }
             case 2:
@@ -1115,15 +1096,15 @@
                 _real_width = this.usedExtX*kd1;
                 _abs_width = Math.abs(_real_width);
                 this.resizedExtX = _abs_width >= MIN_SHAPE_SIZE  ? _abs_width : (MIN_SHAPE_SIZE);
-
-
                 _new_resize_half_width = this.resizedExtX*0.5;
                 _new_resize_half_height = this.resizedExtY*0.5;
-                    _new_used_half_width = _new_resize_half_width;
+                _new_used_half_width = _new_resize_half_width;
+                _new_used_half_height = _new_resize_half_height;
 
-                    _new_used_half_height = _new_resize_half_height;
-                this.resizedPosX = this.fixedPointX + (_new_used_half_width) - _new_resize_half_width;
-                this.resizedPosY = this.fixedPointY + ( - _new_used_half_height) - _new_resize_half_height;
+
+                r = this.checkFlips(_real_width, _real_height, _new_resize_half_width, _new_resize_half_height);
+                this.resizedPosX = this.fixedPointX + (r._new_used_half_width) - _new_resize_half_width;
+                this.resizedPosY = this.fixedPointY + ( -r._new_used_half_height) - _new_resize_half_height;
                 break;
             }
 
@@ -1146,14 +1127,7 @@
                 _real_height = this.usedExtY*kd2;
                 _abs_height = Math.abs(_real_height);
                 this.resizedExtY = _abs_height >= MIN_SHAPE_SIZE  ? _abs_height :  (MIN_SHAPE_SIZE);
-                if(_real_height < 0 )
-                {
-                    this.resizedflipV = !this.originalFlipV;
-                }
-                else
-                {
-                    this.resizedflipV = this.originalFlipV;
-                }
+
 
                 _new_resize_half_width = this.resizedExtX*0.5;
                 _new_resize_half_height = this.resizedExtY*0.5;
@@ -1161,8 +1135,10 @@
 
                     _new_used_half_height = _new_resize_half_height;
 
-                this.resizedPosX = this.fixedPointX + (_new_used_half_width) - _new_resize_half_width;
-                this.resizedPosY = this.fixedPointY + ( _new_used_half_height) - _new_resize_half_height;
+
+                r = this.checkFlips(_real_width, _real_height, _new_resize_half_width, _new_resize_half_height);
+                this.resizedPosX = this.fixedPointX + (r._new_used_half_width) - _new_resize_half_width;
+                this.resizedPosY = this.fixedPointY + (r._new_used_half_height) - _new_resize_half_height;
 
                 break;
             }
@@ -1192,11 +1168,58 @@
                     _new_used_half_width = _new_resize_half_width;
                     _new_used_half_height = _new_resize_half_height;
 
-                this.resizedPosX = this.fixedPointX + (-_new_used_half_width) - _new_resize_half_width;
-                this.resizedPosY = this.fixedPointY + ( _new_used_half_height) - _new_resize_half_height;
+                r = this.checkFlips(_real_width, _real_height, _new_resize_half_width, _new_resize_half_height);
+                this.resizedPosX = this.fixedPointX + (-r._new_used_half_width) - _new_resize_half_width;
+                this.resizedPosY = this.fixedPointY + ( r._new_used_half_height) - _new_resize_half_height;
                 break;
             }
         }
+
+        var x0 = Math.max(0, Math.min(this.resizedPosX, this.resizedPosX + this.resizedExtX));
+        var y0 = Math.max(0, Math.min(this.resizedPosY, this.resizedPosY + this.resizedExtY));
+        var x1 = Math.min(this.page.getWidth(), Math.max(this.resizedPosX, this.resizedPosX + this.resizedExtX));
+        var y1 = Math.min(this.page.getHeight(), Math.max(this.resizedPosY, this.resizedPosY + this.resizedExtY));
+        this.resizedPosX = x0;
+        this.resizedPosY = y0;
+        this.resizedExtX = x1 - x0;
+        this.resizedExtY = y1 - y0;
+    };
+
+    ResizeTrack.prototype.checkFlips = function(_real_width, _real_height, _new_resize_half_width, _new_resize_half_height) {
+        if(_real_height < 0 )
+        {
+            this.resizedflipV = !this.originalFlipV;
+        }
+        else
+        {
+            this.resizedflipV = this.originalFlipV;
+        }
+        if(_real_width < 0 )
+        {
+            this.resizedflipH = !this.originalFlipH;
+        }
+        else
+        {
+            this.resizedflipH = this.originalFlipH;
+        }
+        var ret = {};
+        if(this.resizedflipH !== this.originalFlipH)
+        {
+            ret._new_used_half_width = -_new_resize_half_width;
+        }
+        else
+        {
+            ret._new_used_half_width = _new_resize_half_width;
+        }
+        if(this.resizedflipV !== this.originalFlipV)
+        {
+            ret._new_used_half_height = -_new_resize_half_height;
+        }
+        else
+        {
+            ret._new_used_half_height = _new_resize_half_height;
+        }
+        return ret;
     };
 
     ResizeTrack.prototype.trackEnd = function()
@@ -1223,16 +1246,22 @@
     };
 
 
-    function MoveTrack(oBlock) {
+    function MoveTrack(oBlock, oPage) {
         this.originalObject = oBlock;
         this.bRecognized = oBlock.bRecognized;
-        this.x = oBlock.bbox.x0;
-        this.y = oBlock.bbox.y0;
+
+        var bb = oBlock.bbox;
+
+        this.x = bb.x0;
+        this.y = bb.y0;
+        this.w = bb.x1 - bb.x0;
+        this.h = bb.y1 - bb.y0;
 
         this.x0 = oBlock.bbox.x0;
         this.y0 = oBlock.bbox.y0;
         this.x1 = oBlock.bbox.x1;
         this.y1 = oBlock.bbox.y1;
+        this.page = oPage;
     }
     MoveTrack.prototype.undo = function(){
         this.originalObject.bbox.x0 = this.x0;
@@ -1243,13 +1272,27 @@
     };
 
     MoveTrack.prototype.track =function (dx, dy) {
-        this.x = this.originalObject.bbox.x0 - dx;
-        this.y = this.originalObject.bbox.y0 - dy;
+        this.x = this.originalObject.bbox.x0 + dx;
+        this.y = this.originalObject.bbox.y0 + dy;
+        if(this.x < 0) {
+            this.x = 0;
+        }
+        if(this.y < 0) {
+            this.y = 0;
+        }
+        var pW = this.page.getWidth();
+        if(this.x + this.w > pW) {
+            this.x -= (this.x + this.w - pW);
+        }
+        var pH = this.page.getHeight();
+        if(this.y + this.h > pH) {
+            this.y -= (this.y + this.h - pH);
+        }
     };
 
     MoveTrack.prototype.trackEnd = function () {
-        var dx = this.originalObject.bbox.x0 - this.x;
-        var dy = this.originalObject.bbox.y0 - this.y;
+        var dx = this.x - this.originalObject.bbox.x0;
+        var dy = this.y - this.originalObject.bbox.y0;
         this.originalObject.bbox.x0 += dx;
         this.originalObject.bbox.y0 += dy;
         this.originalObject.bbox.x1 += dx;
@@ -1258,22 +1301,11 @@
     };
     MoveTrack.prototype.draw = function (oOverlay, oCtx) {
 
-        var x0 = this.originalObject.bbox.x0;
-        var y0 = this.originalObject.bbox.y0;
-        var x1 = this.originalObject.bbox.x1;
-        var y1 = this.originalObject.bbox.y1;
-
-        var dx = this.originalObject.bbox.x0 - this.x;
-        var dy = this.originalObject.bbox.y0 - this.y;
-        x0 += dx;
-        y0 += dy;
-        x1 += dx;
-        y1 += dy;
         var sColor = "#CCCCCC";
         if(MAP_COLORS[MAP_TESSERACT_AREAS[this.originalObject.blocktype]]) {
             sColor = MAP_COLORS[MAP_TESSERACT_AREAS[this.originalObject.blocktype]];
         }
-        oOverlay.drawTrackObject(oCtx, x0, y0, x1, y1, sColor, 0.3)
+        oOverlay.drawTrackObject(oCtx, this.x, this.y, this.x + this.w, this.y + this.h, sColor, 0.3)
     };
 
 
@@ -1292,15 +1324,15 @@
     };
 
     NewTrack.prototype.track =function (x, y) {
-        this.x0 = Math.min(x, this.stX);
-        this.y0 = Math.min(y, this.stY);
-        this.x1 = Math.max(x, this.stX);
-        this.y1 = Math.max(y, this.stY);
+        this.x0 = Math.max(0, Math.min(x, this.stX));
+        this.y0 = Math.max(0, Math.min(y, this.stY));
+        this.x1 = Math.min(this.page.getWidth(), Math.max(x, this.stX));
+        this.y1 = Math.min(this.page.getHeight(), Math.max(y, this.stY));
     };
 
     NewTrack.prototype.trackEnd = function () {
 
-        var oBlock = {bbox: {}}
+        var oBlock = {bbox: {}};
         oBlock.bbox.x0 = this.x0;
         oBlock.bbox.y0 = this.y0;
         oBlock.bbox.x1 = this.x1;
@@ -1394,7 +1426,7 @@
             if(nHit > -1){
                 this.recognition.selectedObjects = [aBlocks[i]];
                 this.recognition.tracks.length = 0;
-                this.recognition.tracks[0] = new ResizeTrack(aBlocks[i], nHit);
+                this.recognition.tracks[0] = new ResizeTrack(aBlocks[i], nHit, oPage);
                 this.recognition.state = new ResizeState(this.recognition, nHit, aBlocks[i]);
                 return;
             }
@@ -1422,48 +1454,7 @@
                 this.recognition.drawing.overlay.update();
                 this.recognition.tracks.length = 0;
                 for(var j = 0; j < this.recognition.selectedObjects.length; ++j) {
-                    this.recognition.tracks.push(new MoveTrack(this.recognition.selectedObjects[j]));
-                }
-                this.recognition.state = new MoveState(this.recognition, aBlocks[i], x, y);
-
-                return;
-            }
-        }
-        this.recognition.selectedObjects.length = 0;
-        this.recognition.drawing.overlay.update();      var oPage = this.recognition.getPage(this.recognition.drawing.page);
-        if(!oPage || !oPage.data) {
-            return;
-        }
-        var aBlocks = this.recognition.selectedObjects;
-        for(var i = aBlocks.length - 1; i > -1; --i) {
-            var nHit = this.hitToHandles(aBlocks[i], x, y);
-            if(nHit > -1){
-                this.recognition.selectedObjects = [aBlocks[i]];
-                this.recognition.tracks.length = 0;
-                this.recognition.tracks[0] = new ResizeTrack(aBlocks[i], nHit);
-                this.recognition.state = new ResizeState(this.recognition, nHit, aBlocks[i]);
-                return;
-            }
-        }
-        aBlocks = oPage.data.blocks;
-        for(i = aBlocks.length - 1; i > -1; --i) {
-            if(this.hit(aBlocks[i], x, y)) {
-
-                for(var j = 0; j < this.recognition.selectedObjects.length; ++j) {
-                    if(this.recognition.selectedObjects[j] === aBlocks[i]) {
-                        break;
-                    }
-                }
-                if(j === this.recognition.selectedObjects.length) {
-                    if(!(e.ctrlKey || e.metaKey)) {
-                        this.recognition.selectedObjects.length = 0;
-                    }
-                    this.recognition.selectedObjects.push(aBlocks[i]);
-                }
-                this.recognition.drawing.overlay.update();
-                this.recognition.tracks.length = 0;
-                for(var j = 0; j < this.recognition.selectedObjects.length; ++j) {
-                    this.recognition.tracks.push(new MoveTrack(this.recognition.selectedObjects[j]));
+                    this.recognition.tracks.push(new MoveTrack(this.recognition.selectedObjects[j], oPage));
                 }
                 this.recognition.state = new MoveState(this.recognition, aBlocks[i], x, y);
 
@@ -1623,6 +1614,12 @@
     ResizeState.prototype.onMouseDown = function (e, x, y) {
     };
     ResizeState.prototype.onMouseMove = function (e, x, y) {
+
+        var button = e.which || e.button;
+        if(button !== 1) {
+            this.onMouseUp (e, x, y);
+            return;
+        }
         var resize_coef = this.getResizeCoefficients(x, y);
         var aTracks = this.recognition.tracks;
         for(var i = 0; i < aTracks.length; ++i) {
@@ -1673,6 +1670,12 @@
     };
     MoveState.prototype.onMouseMove = function (e, x, y) {
 
+
+        var button = e.which || e.button;
+        if(button !== 1) {
+            this.onMouseUp (e, x, y);
+            return;
+        }
         var dx = x - this.stX;
         var dy = y - this.stY;
         if(!this.tracked && Math.abs(dx) < 2 && Math.abs(dy) < 2 ) {
@@ -1722,16 +1725,20 @@
         this.recognition = oRecognition;
     }
     AddBoxState.prototype.onMouseDown = function(e, x, y) {
-        if(this.tracked){
-            return;
-        }
         this.stX = x;
         this.stY = y;
         this.recognition.tracks.length = 0;
         this.recognition.tracks.push(new NewTrack(x, y, this.type, this.recognition.getCurPage()));
     };
     AddBoxState.prototype.onMouseMove = function(e, x, y) {
+
+
         if(this.recognition.tracks[0]) {
+            var button = e.which || e.button;
+            if(button !== 1) {
+                this.onMouseUp (e, x, y);
+                return;
+            }
             this.tracked = true;
             this.recognition.tracks[0].track(x, y);
             this.recognition.drawing.overlay.update();
