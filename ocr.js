@@ -100,6 +100,8 @@
 
 
         $( window ).resize(function(){
+            oRecognition.drawing.onZoom(0);
+            oRecognition.drawing.onPreviewZoom(0);
         });
         function updateScroll(){
         }

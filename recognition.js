@@ -448,31 +448,34 @@
         return  true;
     };
     CRecognition.prototype.updateReviewDiv = function(oPage) {
-        $("#text-container-div").empty();
+
+        var oParentDiv = $("#ocr_preview_div");
+        oParentDiv.empty();
         if(!oPage || !oPage.data || !oPage.data.hocr) {
+            oParentDiv.hide();
             return;
         }
-        $("#text-container-div").css("overflow", "hidden");
-        var oParentDiv = $("<div><div/>");
-        oParentDiv.empty();
+        $("#ocr_preview_parent_div").css("overflow", "hidden");
         oParentDiv.addClass("float-block");
-        var fAspectW = $("#text-container-div").width() / oPage.getWidth();
-        var fAspectH = $("#text-container-div").height() / oPage.getHeight();
-        var nWidth, nHeight;
-        if(fAspectW < fAspectH) {
-            nWidth = $("#text-container-div").width();
-            nHeight =(oPage.getHeight() * fAspectW + 0.5 >> 0);
-
-        }
-        else {
-            nWidth = (oPage.getWidth() * fAspectH + 0.5 >> 0);
-            nHeight =  $("#text-container-div").height();
-        }
-        var fScale = Math.min(fAspectW, fAspectH);
+        var nWidth = oPage.getWidth()*this.drawing.previewZoom;
+        var nHeight = oPage.getHeight()*this.drawing.previewZoom;
+        var fScale = this.drawing.previewZoom;
         oParentDiv.css("width", nWidth+ "px");
         oParentDiv.css("height", nHeight + "px");
-        oParentDiv.css("margin-left", (($("#text-container-div").width() - nWidth) / 2  +0.5 >> 0)+ "px");
-        oParentDiv.css("margin-top", (($("#text-container-div").height() - nHeight) / 2  +0.5 >> 0)+ "px");
+        var nParentW = $("#ocr_preview_parent_div").width();
+        var nParentH = $("#ocr_preview_parent_div").height();
+        if(nParentW > nWidth) {
+            oParentDiv.css("margin-left", (($("#ocr_preview_parent_div").width() - nWidth) / 2  +0.5 >> 0)+ "px");
+        }
+        else {
+            oParentDiv.css("margin-left", "0px");
+        }
+        if(nParentH > nHeight) {
+            oParentDiv.css("margin-top", (($("#ocr_preview_parent_div").height() - nHeight) / 2  +0.5 >> 0)+ "px");
+        }
+        else {
+            oParentDiv.css("margin-top", "0px");
+        }
         var aBlocks = oPage.data.blocks;
         var oDiv, oHtmlPar, oBlock, bb, oParagraph, i, j, k, t, oSpan, oLine, sText, oWord;
         for(i = 0; i < aBlocks.length; ++i) {
@@ -517,12 +520,12 @@
                    oHtmlPar.css("line-height", nLH + "px");
                     var nPH = oParagraph.bbox.y1 - oParagraph.bbox.y0;
                     nPH *= fScale;
-                    // while (oHtmlPar.height() > nPH && nLH > 1) {
-                    //     --nLH;
-                    //     oHtmlPar.css("line-height", nLH + "px");
-                    // }
+                    while (oHtmlPar.height() > nPH && nLH > 1) {
+                        --nLH;
+                        oHtmlPar.css("line-height", nLH + "px");
+                    }
                 }
-                oDiv.fitText(.8);
+                oDiv.fitText(0.8);
             }
             else if(this.isImage(oBlock)){
                 oDiv = document.createElement("canvas");
@@ -547,7 +550,7 @@
                 oDiv.css("height", height + "px");
             }
         }
-        $("#text-container-div").append(oParentDiv);
+        oParentDiv.show();
     };
     CRecognition.prototype.onPageUpdate = function(oPage) {
         this.updateView();

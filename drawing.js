@@ -5,6 +5,8 @@
     var sOCRFakeDivId = "ocr_fake_div";
     var sOCRFakeDivParentId = "ocr_fake_div_parent";
     var sOCRMaskCanvasId = "ocr_mask_canvas";
+    var sOCRPreviewDivId = "ocr_preview_div";
+    var sOCRPreviewParentDivId = "ocr_preview_parent_div";
     var sCanvasStyle = "display: block; position: absolute; padding: 0; margin: 0; user-select: none; left: 0px; top: 0px; width: 100%; height: 100%; background: transparent;"
     var oDrawing = null;
 
@@ -151,6 +153,7 @@
             oParent.stopScroll = !!(event.ctrlKey || event.metakey);
         });
 
+
         $(this.fakeDivParent).on('wheel', function (event) {
             if(oParent.stopScroll) {
                 var delta = 0;
@@ -164,44 +167,7 @@
                     delta = event.originalEvent.detail;
                 }
                 if(delta !== 0) {
-                    var nClientWidth = oDrawing.getClientWidth();
-                    var nClientHeight = oDrawing.getClientHeight();
-                    var oImageC = oDrawing.convertScreenToImage(oDrawing.convertToScreen(nClientWidth) / 2 + 0.5 >> 0, oDrawing.convertToScreen(nClientHeight) / 2 + 0.5 >> 0);
-                    if(delta > 0) {
-                        oDrawing.zoom += 0.1;
-                    }
-                    else {
-                        oDrawing.zoom -= 0.1;
-                    }
-                    oDrawing.zoom *= 10;
-                    oDrawing.zoom = ((oDrawing.zoom + 0.5 ) >> 0);
-                    oDrawing.zoom /= 10;
-                    oDrawing.zoom = Math.min(32, Math.max(0.1, oDrawing.zoom));
-                    oDrawing.pageX = 0;
-                    oDrawing.pageY = 0;
-                    var nPageWidth = oDrawing.getPageWidth();
-                    var nPageHeight = oDrawing.getPageHeight();
-                    oDrawing.pageX = 0;
-                    oDrawing.pageY = 0;
-                    if(nPageWidth <= nClientWidth) {
-                        oDrawing.pageX = ((nClientWidth - nPageWidth) / 2 + 0.5) >> 0;
-                    }
-                    else {
-                        var DX = oDrawing.zoom*oImageC.x;
-                        oDrawing.pageX = Math.min(0, (nClientWidth / 2 - DX  + 0.5) >> 0);
-                        oDrawing.pageX = Math.max(oDrawing.pageX, nClientWidth - nPageWidth);
-                    }
-                    if(nPageHeight <= nClientHeight) {
-                        oDrawing.pageY = ((nClientHeight - nPageHeight) / 2 + 0.5) >> 0;
-                    }
-                    else {
-                        var DY = oDrawing.zoom*oImageC.y;
-                        oDrawing.pageY = Math.min(0, (nClientHeight / 2 - DY  + 0.5) >> 0);
-                        oDrawing.pageY = Math.max(oDrawing.pageY, nClientHeight - nPageHeight);
-                    }
-                    oDrawing.drawCurPage();
-                    oDrawing.updateScrolls();
-
+                    oDrawing.onZoom(delta);
                 }
                 event.stopImmediatePropagation();
                 event.stopPropagation();
@@ -261,9 +227,155 @@
         }
         this.maskCanvas = oCanvas;
         $(this.maskCanvas).hide();
+
+
+        //Preview
+        this.previewZoom = 1.0;
+        var textContainerDiv = document.getElementById("text-container-div");
+
+
+        this.textPreviewDivParent = document.createElement("div");
+        this.textPreviewDivParent.id = sOCRPreviewParentDivId;
+        this.textPreviewDivParent.style.cssText = sCanvasStyle;
+        this.textPreviewDivParent.style.position = "relative";
+        this.textPreviewDivParent.style.zIndex = "7";
+        textContainerDiv.appendChild(this.textPreviewDivParent);
+        oDiv = document.createElement("div");
+        oDiv.id = sOCRPreviewDivId;
+        oDiv.style.cssText = sCanvasStyle;
+        oDiv.style.position = "relative";
+        oDiv.style.background = "white";
+        oDiv.style.userSelect = "text";
+        this.textPreviewDivParent.appendChild(oDiv);
+        $(oDiv).hide();
+        $(this.textPreviewDivParent).on('wheel', function (event) {
+            var delta = 0;
+            if (undefined !== event.originalEvent.wheelDelta && event.originalEvent.wheelDelta !== 0)
+            {
+                delta = event.originalEvent.wheelDelta;
+            }
+            else if (undefined !== event.originalEvent.detail && event.originalEvent.detail !== 0)
+            {
+                delta = event.originalEvent.detail;
+            }
+            oDrawing.onPreviewZoom(delta);
+            event.stopImmediatePropagation();
+            event.stopPropagation();
+            event.preventDefault();
+        });
+
+        this.previewScroll = new PerfectScrollbar('#' + this.textPreviewDivParent.id, {
+            minScrollbarLength: 50
+        });
+
     }
 
+    CDrawing.prototype.onPreviewZoom = function(delta) {
+        var oDrawing = this;
+        var nSL = oDrawing.textPreviewDivParent.scrollLeft;
+        var nST = oDrawing.textPreviewDivParent.scrollTop;
+        var nPreviewCX, nPreviewCY;
+        if(this.getPagePreviewWidth() <= this.getPreviewClientWidth()) {
+            nPreviewCX = this.getOrigPageWidth() / 2 + 0.5 >> 0;
+        }
+        else {
+            nPreviewCX = (this.getPreviewClientWidth() / 2 + nSL) / this.previewZoom + 0.5 >> 0;
+        }
+        if(this.getPagePreviewHeight() <= this.getPreviewClientHeight()) {
+            nPreviewCY = this.getOrigPageHeight() / 2 + 0.5 >> 0;
+        }
+        else {
+            nPreviewCY = (this.getPreviewClientHeight() / 2 + nST) / this.previewZoom + 0.5 >> 0;
+        }
+        if(delta > 0) {
+            oDrawing.previewZoom += 0.1;
+        }
+        else if(delta < 0) {
+            oDrawing.previewZoom -= 0.1;
+        }
+        else {
 
+        }
+        oDrawing.previewZoom *= 10;
+        oDrawing.previewZoom = ((oDrawing.previewZoom + 0.5 ) >> 0);
+        oDrawing.previewZoom /= 10;
+        oDrawing.previewZoom = Math.min(32, Math.max(0.1, oDrawing.previewZoom));
+        var nDiff, nPos;
+        if(delta !== 0) {
+            if(this.getPagePreviewWidth() > this.getPreviewClientWidth()) {
+                nDiff = this.getPagePreviewWidth() - this.getPreviewClientWidth();
+                nPos = (nPreviewCX * this.previewZoom - this.getPreviewClientWidth() / 2 + 0.5) >> 0;
+                oDrawing.textPreviewDivParent.scrollLeft = Math.min(nDiff, nPos);
+            }
+            if(this.getPagePreviewHeight() > this.getPreviewClientHeight()) {
+                nDiff = this.getPagePreviewHeight() - this.getPreviewClientHeight();
+                nPos = (nPreviewCY * this.previewZoom - this.getPreviewClientHeight() / 2 + 0.5) >> 0;
+                oDrawing.textPreviewDivParent.scrollTop = Math.min(nDiff, nPos);
+            }
+        }
+        oDrawing.recognition.updateReviewDiv(oDrawing.recognition.getCurPage());
+        oDrawing.previewScroll.update();
+    };
+
+    CDrawing.prototype.onZoom = function (delta) {
+        var oDrawing = this;
+        var nClientWidth = oDrawing.getClientWidth();
+        var nClientHeight = oDrawing.getClientHeight();
+        var oImageC = oDrawing.convertScreenToImage(oDrawing.convertToScreen(nClientWidth) / 2 + 0.5 >> 0, oDrawing.convertToScreen(nClientHeight) / 2 + 0.5 >> 0);
+        if(delta > 0) {
+            oDrawing.zoom += 0.1;
+        }
+        else if(delta < 0) {
+            oDrawing.zoom -= 0.1;
+        }
+        else {
+
+        }
+        oDrawing.zoom *= 10;
+        oDrawing.zoom = ((oDrawing.zoom + 0.5 ) >> 0);
+        oDrawing.zoom /= 10;
+        oDrawing.zoom = Math.min(32, Math.max(0.1, oDrawing.zoom));
+        var oldPageX = oDrawing.pageX;
+        var oldPageY = oDrawing.pageY;
+        oDrawing.pageX = 0;
+        oDrawing.pageY = 0;
+        var nPageWidth = oDrawing.getPageWidth();
+        var nPageHeight = oDrawing.getPageHeight();
+        oDrawing.pageX = 0;
+        oDrawing.pageY = 0;
+        if(nPageWidth <= nClientWidth) {
+            oDrawing.pageX = ((nClientWidth - nPageWidth) / 2 + 0.5) >> 0;
+        }
+        else {
+            if(delta !== 0) {
+                var DX = oDrawing.zoom*oImageC.x;
+                oDrawing.pageX = Math.min(0, (nClientWidth / 2 - DX  + 0.5) >> 0);
+                oDrawing.pageX = Math.max(oDrawing.pageX, nClientWidth - nPageWidth);
+
+            }
+            else {
+                oDrawing.pageX = oldPageX;
+            }
+        }
+        if(nPageHeight <= nClientHeight) {
+            oDrawing.pageY = ((nClientHeight - nPageHeight) / 2 + 0.5) >> 0;
+        }
+        else {
+            if(delta !== 0) {
+                var DY = oDrawing.zoom*oImageC.y;
+                oDrawing.pageY = Math.min(0, (nClientHeight / 2 - DY  + 0.5) >> 0);
+                oDrawing.pageY = Math.max(oDrawing.pageY, nClientHeight - nPageHeight);
+            }
+            else {
+                oDrawing.pageY = oldPageY;
+            }
+        }
+        oDrawing.drawCurPage();
+        oDrawing.updateScrolls();
+        if(oDrawing.bRecognition) {
+            oDrawing.drawMaskFrame();
+        }
+    };
     CDrawing.prototype.updateCursor = function(sType) {
 
         $(this.fakeDivParent).css("cursor", sType);
@@ -520,21 +632,43 @@
             }
         }
     };
-    CDrawing.prototype.getPageWidth = function() {
+
+
+    CDrawing.prototype.getOrigPageWidth = function() {
         var nPageWidth = 0;
         var oPage = this.recognition.getPage(this.page);
         if(oPage) {
-            nPageWidth = oPage.getWidth() * this.zoom + 0.5 >> 0;
+            nPageWidth = oPage.getWidth() ;
         }
         return nPageWidth;
     };
-    CDrawing.prototype.getPageHeight = function() {
+    CDrawing.prototype.getOrigPageHeight = function() {
         var nPageHeight = 0;
         var oPage = this.recognition.getPage(this.page);
         if(oPage) {
-            nPageHeight = oPage.getHeight() * this.zoom + 0.5 >> 0;
+            nPageHeight = oPage.getHeight();
         }
         return nPageHeight;
+    };
+
+    CDrawing.prototype.getPageWidth = function() {
+        return this.getOrigPageWidth() * this.zoom + 0.5 >> 0;
+    };
+    CDrawing.prototype.getPageHeight = function() {
+        return this.getOrigPageHeight() * this.zoom + 0.5 >> 0;
+    };
+
+    CDrawing.prototype.getPagePreviewWidth = function() {
+        return this.getOrigPageWidth() * this.previewZoom + 0.5 >> 0;
+    };
+    CDrawing.prototype.getPagePreviewHeight = function() {
+        return this.getOrigPageHeight() * this.previewZoom + 0.5 >> 0;
+    };
+    CDrawing.prototype.getPreviewClientWidth = function() {
+        return this.textPreviewDivParent.clientWidth;
+    };
+    CDrawing.prototype.getPreviewClientHeight = function() {
+        return this.textPreviewDivParent.clientHeight;
     };
     CDrawing.prototype.getClientWidth = function() {
         return this.canvas.clientWidth;
