@@ -249,6 +249,9 @@
         this.textPreviewDivParent.appendChild(oDiv);
         $(oDiv).hide();
         $(this.textPreviewDivParent).on('wheel', function (event) {
+            if(!oParent.stopScroll) {
+                return;
+            }
             var delta = 0;
             if (undefined !== event.originalEvent.wheelDelta && event.originalEvent.wheelDelta !== 0)
             {
@@ -373,7 +376,7 @@
         oDrawing.drawCurPage();
         oDrawing.updateScrolls();
         if(oDrawing.bRecognition) {
-            oDrawing.drawMaskFrame();
+            oDrawing.drawMaskFrameProc();
         }
     };
     CDrawing.prototype.updateCursor = function(sType) {
@@ -397,8 +400,7 @@
         };
     };
 
-    CDrawing.prototype.drawMaskFrame = function() {
-
+    CDrawing.prototype.drawMaskFrameProc = function() {
         var W = this.convertToScreen(this.canvas.clientWidth);
         var H = this.convertToScreen(this.canvas.clientWidth);
 
@@ -426,16 +428,20 @@
         else {
             addText = "...";
         }
-        this.animCount++;
         var sText = window.Asc.plugin.tr("Recognizing") + addText + "\n " + (this.progress * 100 + .5 >> 0) + "%";
         var nSize = this.convertToScreen(20);
         oCtx.font = nSize + 'px sans-serif';
         var text = oCtx.measureText(sText);
-        text.width;
         oCtx.fillStyle = "white";
         oCtx.fillText(sText, ((this.maskCanvas.width) / 2 - text.width / 2 + 0.5) >> 0, ((this.maskCanvas.height) / 2 + 0.5) >> 0);
+    };
+
+    CDrawing.prototype.drawMaskFrame = function() {
+
+        this.drawMaskFrameProc();
         var _t = this;
         _t.animId = null;
+        this.animCount++;
         this.timeOutId = setTimeout(function () {
             _t.animId = requestAnimationFrame(function () {_t.drawMaskFrame()});
         }, 600);
@@ -510,10 +516,13 @@
             var nWidth = oPage.getWidth();
             if(nWidth > 0) {
                 this.zoom = this.canvas.clientWidth / nWidth;
+                this.previewZoom = this.textPreviewDivParent.clientWidth / nWidth;
             }
             else {
                 this.zoom = 1.0;
+                this.previewZoom = 1.0;
             }
+
         }
 
         var nPageWidth = this.getPageWidth();

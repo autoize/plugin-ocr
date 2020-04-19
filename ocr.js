@@ -83,7 +83,9 @@
     var arrParsedData = [];
     var oRecognition;
     window.Asc.plugin.init = function(){
-
+        if(typeof Tesseract === "undefined") {
+            this.executeCommand("close", "");
+        }
         this.resizeWindow(800, 571, 800, 571, 800, 571);
         var oImagesContainer = document.getElementById('image-container-div');
         var container = document.getElementById('scrollable-image-text-div');

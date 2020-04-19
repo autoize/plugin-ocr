@@ -37,11 +37,11 @@
     }
     .float-block {
         position: absolute;
-        width: 220px;
-        height:30px;
-        background: white;
-        border-color: #8d8d8d;
-        border-width: 5px;
+        box-sizing: border-box;
+        border: 1px transparent solid;
+    }
+    .selected-block {
+        border: 1px #9e9e9e dashed;
     }
 
     #lang-select {
@@ -197,7 +197,7 @@
                 </div>
             </div>
         </div>
-        <div id="scrollable-image-text-div" class="noselect" style="background-color:#E2E2E2; padding-left: 10px; border: 1px; position: relative; display: inline-block;  position: relative; overflow: hidden; width: 100%; height: calc(100% - 60px);">
+        <div id="scrollable-image-text-div" class="noselect" style="background-color:#e2e2e2; padding-left: 10px; border: 1px; position: relative; display: inline-block;  position: relative; overflow: hidden; width: 100%; height: calc(100% - 60px);">
             <div style="display: inline-block; width: calc(50% - 20px); height: 100%; border: 1px; position: relative;" id="image-container-div" class="noselect">
 
             </div>

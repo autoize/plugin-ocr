@@ -447,6 +447,45 @@
         }
         return  true;
     };
+
+    CRecognition.prototype.fillTextBox = function(oDiv, oBlock, fScale) {
+        oDiv.empty();
+        var bb = oBlock.bbox;
+        for(var j = 0;  j < oBlock.paragraphs.length; ++j) {
+            var oParagraph = oBlock.paragraphs[j];
+            var oHtmlPar = $("<p></p>");
+            oHtmlPar.css("margin", "0px");
+            var oFirstLine = oParagraph.lines[0];
+            if(oFirstLine) {
+                oHtmlPar.css("text-indent", ((oFirstLine.bbox.x0 - bb.x0) *fScale) + "px");
+            }
+            oDiv.append(oHtmlPar);
+            oHtmlPar.text(oParagraph.text);
+            continue;
+            var nHeightsS = 0;
+            var minH = 10000;
+            for(var k = 0; k < oParagraph.lines.length; ++k) {
+                var oLine = oParagraph.lines[k];
+                for(var t = 0; t < oLine.words.length; ++t) {
+                    var oWord = oLine.words[t];
+                    var oSpan = $("<span></span>");
+                    oHtmlPar.append(oSpan);
+                  //  $(oSpan).css("fontSize", (oWord.font_size * 2 * fScale) + "pt");
+                    var sText = oWord.text;
+                    if(k !== oParagraph.lines.length - 1 || t !== oLine.words.length - 1) {
+                        sText += " ";
+                    }
+                    $(oSpan).text(sText);
+                }
+                if(k < oParagraph.lines.length - 1) {
+                    //oHtmlPar.append($("<br/>"));
+                }
+                minH = Math.min(minH, ((oLine.bbox.y1 - oLine.bbox.y0)));
+                nHeightsS += ((oLine.bbox.y1 - oLine.bbox.y0));
+            }
+        }
+
+    };
     CRecognition.prototype.updateReviewDiv = function(oPage) {
 
         var oParentDiv = $("#ocr_preview_div");
@@ -455,8 +494,10 @@
             oParentDiv.hide();
             return;
         }
+
         $("#ocr_preview_parent_div").css("overflow", "hidden");
         oParentDiv.addClass("float-block");
+        oParentDiv.css("background", "white");
         var nWidth = oPage.getWidth()*this.drawing.previewZoom;
         var nHeight = oPage.getHeight()*this.drawing.previewZoom;
         var fScale = this.drawing.previewZoom;
@@ -477,6 +518,8 @@
             oParentDiv.css("margin-top", "0px");
         }
         var aBlocks = oPage.data.blocks;
+
+        oParentDiv.show();
         var oDiv, oHtmlPar, oBlock, bb, oParagraph, i, j, k, t, oSpan, oLine, sText, oWord;
         for(i = 0; i < aBlocks.length; ++i) {
             oBlock = aBlocks[i];
@@ -487,45 +530,67 @@
             }
             if(this.isText(oBlock)) {
                 oDiv = $("<div><div/>");
-                oDiv.empty();
+                oDiv.attr("id", "div" + i);
+                oBlock.divid = "div" + i;
+                oDiv.addClass("float-block");
+                oDiv.addClass("view-elem");
+                var left = bb.x0 * nWidth / oPage.getWidth();
+                var top = bb.y0 * nHeight / oPage.getHeight();
+                var width = (bb.x1 - bb.x0) * nWidth / oPage.getWidth();
+                var height = (bb.y1 - bb.y0) * nHeight / oPage.getHeight();
+                oDiv.css("margin-left", left + "px");
+                oDiv.css("margin-top", top + "px");
+                oDiv.css("width", width + "px");
+                oDiv.css("height", "auto");
+
                 $(oParentDiv).append(oDiv);
-                for(j = 0;  j < oBlock.paragraphs.length; ++j) {
-                    oParagraph = oBlock.paragraphs[j];
-                    oHtmlPar = $("<p></p>");
-                    oHtmlPar.css("margin", "0px");
-                    var oFirstLine = oParagraph.lines[0];
-                    if(oFirstLine) {
-                        oHtmlPar.css("text-indent", ((oFirstLine.bbox.x0 - bb.x0) * fScale + 0.5 >> 0) + "px");
-                    }
-                    oDiv.append(oHtmlPar);
-                    var nHeightsS = 0;
-                    var minH =10000;
-                    for(k = 0; k < oParagraph.lines.length; ++k) {
-                        oLine = oParagraph.lines[k];
-                        for(t = 0; t < oLine.words.length; ++t) {
-                            oWord = oLine.words[t];
-                            oSpan = $("<span></span>");
-                            oHtmlPar.append(oSpan);
-                            $(oSpan).css("fontSize", (oWord.font_size * 2 * fScale + 0.5 >> 0) + "pt");
-                            sText = oWord.text;
-                            if(k !== oParagraph.lines.length - 1 || t !== oLine.words.length - 1) {
-                                sText += " ";
-                            }
-                            $(oSpan).text(sText);
+                var nStartSize = 20;
+                var nSize = nStartSize;
+                //this.fillTextBox(oDiv, oBlock, fScale);
+                //oDiv.fitText(1.5);
+                //oDiv.css("font-size", "");
+                var fMult = 1, fMultDelta;
+                this.fillTextBox(oDiv, oBlock, fScale);
+
+                oDiv.children().css("font-size", nSize + "pt");
+                if(oDiv.height() <= 0) {
+                    continue;
+                }
+                var nMaxDelta = 1, fMaxMultDelta = 0.01;
+                var nDelta = height - oDiv.height(), nSign;
+                if(Math.abs(nDelta) > nMaxDelta){
+                    if(nDelta > 0) {
+                        while (oDiv.height() < height && oDiv.height() > 0) {
+                            nSize *= 2;
+                            oDiv.children().css("font-size", nSize + "pt");
                         }
-                        minH = Math.min(minH, ((oLine.bbox.y1 - oLine.bbox.y0)*fScale));
-                        nHeightsS += ((oLine.bbox.y1 - oLine.bbox.y0)*fScale);
+                        nSign = -1;
                     }
-                    var nLH = (nHeightsS / oParagraph.lines.length + .5 >> 0);
-                   oHtmlPar.css("line-height", nLH + "px");
-                    var nPH = oParagraph.bbox.y1 - oParagraph.bbox.y0;
-                    nPH *= fScale;
-                    while (oHtmlPar.height() > nPH && nLH > 1) {
-                        --nLH;
-                        oHtmlPar.css("line-height", nLH + "px");
+                    else {
+                        while (oDiv.height() > height && nSize > fMaxMultDelta) {
+                            nSize /= 2;
+                            oDiv.children().css("font-size", nSize + "pt");
+                        }
+                        nSign = +1;
+                    }
+
+                    var nHight = Math.max(nSize, nStartSize);
+                    var nLow = Math.min(nSize, nStartSize);
+                    while(nHight - nLow > fMaxMultDelta
+                    && Math.abs(height - oDiv.height()) > nMaxDelta) {
+                        nSize = (nHight + nLow) / 2;
+                        oDiv.children().css("font-size", nSize + "pt");
+                        nDelta = height - oDiv.height();
+                        if(nDelta > 0) {
+                            nLow = nSize;
+                        }
+                        else {
+                            nHight = nSize;
+                        }
                     }
                 }
-                oDiv.fitText(0.8);
+
+                oDiv.css("height", height + "px");
             }
             else if(this.isImage(oBlock)){
                 oDiv = document.createElement("canvas");
@@ -536,21 +601,29 @@
                 oPage.drawToCanvas(oDiv, bb.x0, bb.y0, bb.x1 - bb.x0, bb.y1 - bb.y0);
                 $(oParentDiv).append($(oDiv));
                 oDiv = $(oDiv);
-            }
-            if(oDiv) {
-                oDiv.addClass("float-block");
 
-                var left = bb.x0 * nWidth / oPage.getWidth() + 0.5 >> 0;
-                var top = bb.y0 * nHeight / oPage.getHeight() + 0.5  >> 0;
-                var width = (bb.x1 - bb.x0) * nWidth / oPage.getWidth() + 0.5 >> 0;
-                var height = (bb.y1 - bb.y0) * nHeight / oPage.getHeight() + 0.5 >> 0;
+
+                oDiv.attr("id", "div" + i);
+                oBlock.divid = "div" + i;
+                oDiv.addClass("float-block");
+                oDiv.addClass("view-elem");
+
+                var left = bb.x0 * nWidth / oPage.getWidth();
+                var top = bb.y0 * nHeight / oPage.getHeight();
+                var width = (bb.x1 - bb.x0) * nWidth / oPage.getWidth();
+                var height = (bb.y1 - bb.y0) * nHeight / oPage.getHeight();
                 oDiv.css("margin-left", left + "px");
                 oDiv.css("margin-top", top + "px");
                 oDiv.css("width", width + "px");
                 oDiv.css("height", height + "px");
             }
         }
-        oParentDiv.show();
+        for( i = 0; i < this.selectedObjects.length; ++i) {
+            oBlock = this.selectedObjects[i];
+            if(oBlock.divid) {
+                $("#" + oBlock.divid).addClass("selected-block");
+            }
+        }
     };
     CRecognition.prototype.onPageUpdate = function(oPage) {
         this.updateView();
@@ -570,15 +643,19 @@
     };
     CRecognition.prototype.internalDrawRect = function(oOverlay, oCtx, oBBox, sColor) {
         if(!sColor) {
-            sColor = "#CCCCCC";
+            sColor = "#cccccc";
         }
         oOverlay.drawTrack(oCtx, oBBox.x0, oBBox.y0, oBBox.x1, oBBox.y1, sColor);
     };
     CRecognition.prototype.updateOverlay = function(oOverlay, oCtx) {
+        $(".view-elem").removeClass("selected-block");
         for(var i = 0; i < this.selectedObjects.length; ++i) {
             var oBlock = this.selectedObjects[i];
             var oBBox = oBlock.bbox;
             this.internalDrawRect(oOverlay, oCtx, oBBox, MAP_COLORS[MAP_TESSERACT_AREAS[oBlock.blocktype]]);
+            if(oBlock.divid) {
+                $("#" + oBlock.divid).addClass("selected-block");
+            }
         }
         for(i = 0; i < this.tracks.length; ++i){
             this.tracks[i].draw(oOverlay, oCtx);
@@ -1376,8 +1453,8 @@
     }
 
     NullState.prototype.hitToHandles = function(oBlock, x, y) {
-        var nSzie = this.recognition.drawing.convertToScreen(5);
-        var nDelta  = this.recognition.drawing.convertScreenToImage(nSzie, 0).x - this.recognition.drawing.convertScreenToImage(0, 0).x;
+        var nsize = this.recognition.drawing.convertToScreen(5);
+        var nDelta  = this.recognition.drawing.convertScreenToImage(nsize, 0).x - this.recognition.drawing.convertScreenToImage(0, 0).x;
         var b = oBlock.bbox;
         var tx, ty;
         tx = b.x0;
@@ -1426,8 +1503,8 @@
     NullState.prototype.hit = function(oBlock, x, y) {
         var b = oBlock.bbox;
 
-        var nSzie = this.recognition.drawing.convertToScreen(5);
-        var nDelta  = this.recognition.drawing.convertScreenToImage(nSzie, 0).x - this.recognition.drawing.convertScreenToImage(0, 0).x;
+        var nsize = this.recognition.drawing.convertToScreen(5);
+        var nDelta  = this.recognition.drawing.convertScreenToImage(nsize, 0).x - this.recognition.drawing.convertScreenToImage(0, 0).x;
         return x >= (b.x0 - nDelta) && x <= (b.x1 + nDelta) && y >= (b.y0 - nDelta) && y <= (b.y1 + nDelta);
     };
 
@@ -1905,7 +1982,8 @@
                 key === "page" ||
                 key === "confidence" ||
                 key === "symbols" ||
-                key === "choices") {
+                key === "choices" ||
+                key === "divid") {
                 return undefined;
             }
             if (typeof value === "object" && value !== null) {
@@ -2126,6 +2204,7 @@
                             paragraphs: [{
                                 lines: [oLine],
                                 bbox: cloneObject(oLine.bbox),
+                                text: oLine.text
                             }],
                             bbox: cloneObject(oLine.bbox)
                         };
@@ -2383,6 +2462,7 @@
         }
         else {
             //TODO: Draw red cross
+            oCtx.fillStyle = "rgb(226, 226, 226)";
             oCtx.fillRect(0, 0, 100, 100);
         }
     };
